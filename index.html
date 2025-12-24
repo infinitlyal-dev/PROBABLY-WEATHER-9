@@ -1,0 +1,39 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Probably Weather</title>
+  <link rel="stylesheet" href="assets/app.css"/>
+</head>
+<body>
+  <div id="bg"></div>
+  <div class="app">
+    <div class="phone">
+      <div class="header">
+        <div class="brand">Probably Weather</div>
+        <button id="locationBtn" class="locationBtn">Search / Favs</button>
+      </div>
+
+      <div class="card">
+        <h2 id="pageTitle">—</h2>
+        <div id="pageSubtitle" class="sub">Loading…</div>
+      </div>
+
+      <div id="main"></div>
+
+      <div class="nav">
+        <button id="navHome" data-nav="home">Home</button>
+        <button id="navHourly" data-nav="hourly">Hourly</button>
+        <button id="navWeekly" data-nav="weekly">Weekly</button>
+        <button id="navSearch" data-nav="search">Search</button>
+        <button id="navSettings" data-nav="settings">Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast">Saved</div>
+  <script src="assets/app.js"></script>
+</body>
+</html>
