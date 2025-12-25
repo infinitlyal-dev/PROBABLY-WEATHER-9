@@ -185,3 +185,132 @@ body{
   font-weight:700;
   display:none;
 }
+
+/* --- Mockup home layout --- */
+.srOnly{
+  position:absolute !important;
+  width:1px; height:1px;
+  padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0,0,0,0);
+  white-space:nowrap; border:0;
+}
+
+.headerStack{
+  align-items:flex-start;
+}
+
+.tagline{
+  margin-top:4px;
+  color: rgba(255,255,255,0.78);
+  font-size:14px;
+  text-shadow:0 2px 14px rgba(0,0,0,0.25);
+}
+
+.iconBtn{
+  appearance:none;
+  border:1px solid rgba(255,255,255,0.25);
+  background:rgba(0,0,0,0.18);
+  color:#fff;
+  width:44px; height:44px;
+  border-radius:14px;
+  backdrop-filter: blur(12px);
+  cursor:pointer;
+}
+
+.hero{
+  margin-top:18px;
+  text-align:center;
+  color:#fff;
+  text-shadow:0 2px 18px rgba(0,0,0,0.35);
+}
+
+.heroTitle{
+  font-size:52px;
+  line-height:1.02;
+  font-weight:800;
+  letter-spacing:-0.03em;
+}
+
+.heroRange{
+  margin-top:10px;
+  font-size:40px;
+  font-weight:700;
+  opacity:0.92;
+}
+
+.heroLoc{
+  margin-top:12px;
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 14px;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,0.25);
+  background:rgba(0,0,0,0.18);
+  backdrop-filter: blur(12px);
+  color:#fff;
+  cursor:pointer;
+}
+
+.heroLoc small{
+  opacity:0.9;
+  font-size:15px;
+}
+
+.glassCard{
+  margin-top:18px;
+  background:rgba(255,255,255,0.78);
+  border:1px solid rgba(255,255,255,0.35);
+  border-radius:18px;
+  padding:16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+  backdrop-filter: blur(12px);
+}
+
+.glassTitle{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-weight:800;
+  font-size:18px;
+  margin:0 0 6px;
+}
+
+.glassSub{
+  margin:0;
+  color: rgba(0,0,0,0.62);
+  font-size:14px;
+}
+
+.glassMeta{
+  margin-top:8px;
+  font-weight:700;
+}
+
+.bottomMeta{
+  margin-top:14px;
+  text-align:center;
+  color: rgba(255,255,255,0.85);
+  font-weight:700;
+  text-shadow:0 2px 14px rgba(0,0,0,0.25);
+}
+
+.bottomMeta a{
+  color: rgba(255,255,255,0.95);
+  text-decoration:none;
+  border-bottom:1px solid rgba(255,255,255,0.35);
+}
+
+/* nav icons */
+.nav{
+  grid-template-columns:repeat(5,1fr);
+}
+.nav button{
+  padding:10px 6px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:6px;
+}
+.navIcon{ font-size:18px; line-height:1; }
+.navLabel{ font-size:12px; opacity:0.9; }

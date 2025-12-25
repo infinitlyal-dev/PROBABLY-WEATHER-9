@@ -178,43 +178,141 @@ function navButton(id, view){
 
 async function renderHome(data){
   const cur = data.current || {};
+  const daily0 = (data.daily || [])[0] || {};
+  const sun = data.sun || {};
+
   const slot = slotFromHour(new Date().getHours());
   const cat = pickCategory(cur);
   await setBackground(cat, slot);
 
-  const tempText = fmtTempC(cur.tempC);
-  el("#pageTitle").textContent = `${state.place.name}${state.place.country ? ", " + state.place.country : ""}`;
-  el("#pageSubtitle").textContent = phrase(cat, slot, tempText);
+  // Verdict word (mockup: "This is windy.")
+  const verdictWord = ({
+    wind: "windy",
+    rain: "rainy",
+    storm: "wild",
+    fog: "foggy",
+    heat: "hot",
+    cold: "cold",
+    clear: "fine"
+  })[cat] || "fine";
+
+  const verdictLine = `This is ${verdictWord}.`;
+
+  // Range (mockup: 22–26°)
+  const minC = daily0.minC;
+  const maxC = daily0.maxC;
+  const minT = fmtTempC(minC);
+  const maxT = fmtTempC(maxC);
+  const rangeText = (Number.isFinite(minC) && Number.isFinite(maxC))
+    ? `${minT.replace("°C","°").replace("°F","°")}–${maxT}`
+    : fmtTempC(cur.tempC);
+
+  // “Today’s extreme” block
+  function extremeCopy(){
+    if (cat === "wind"){
+      return {
+        title: "Today’s extreme: Wind",
+        line: "Wind is the main event today.",
+        meta: `${fmtWindKmh(cur.windKmh)}`
+      };
+    }
+    if (cat === "rain"){
+      return {
+        title: "Today’s extreme: Rain",
+        line: "You’ll probably get wet at some point.",
+        meta: `${fmtMm(cur.precipMm)} mm · ${Math.round(cur.precipProb||0)}% chance`
+      };
+    }
+    if (cat === "storm"){
+      return {
+        title: "Today’s extreme: Storm",
+        line: "Keep plans flexible. It’s a spicy one.",
+        meta: `${fmtWindKmh(cur.windKmh)} · ${fmtMm(cur.precipMm)} mm`
+      };
+    }
+    if (cat === "heat"){
+      return {
+        title: "Today’s extreme: Heat",
+        line: "It’s giving sunscreen and shade.",
+        meta: `Feels like ${fmtTempC(cur.feelsC)}`
+      };
+    }
+    if (cat === "cold"){
+      return {
+        title: "Today’s extreme: Cold",
+        line: "Layers. Hot coffee. No shame.",
+        meta: `Feels like ${fmtTempC(cur.feelsC)}`
+      };
+    }
+    if (cat === "fog"){
+      return {
+        title: "Today’s extreme: Fog",
+        line: "Low visibility vibes. Drive like a grownup.",
+        meta: `Visibility ${Number.isFinite(cur.visKm) ? cur.visKm.toFixed(1) + " km" : "—"}`
+      };
+    }
+    return {
+      title: "Today’s extreme: Calm",
+      line: "Not much drama. Take the win.",
+      meta: ""
+    };
+  }
+
+  const ex = extremeCopy();
+
+  // Simple confidence (placeholder but believable)
+  function confidence(){
+    const pp = cur.precipProb || 0;
+    const w = cur.windKmh || 0;
+    if (cat === "clear" && pp < 20 && w < 25) return "High";
+    if (cat === "storm") return "Medium";
+    if (cat === "rain" && pp >= 70) return "High";
+    return "Medium";
+  }
+
+  const placeLabel = `${state.place.name}${state.place.country ? ", " + state.place.country : ""}`;
 
   el("#main").innerHTML = `
-    <div class="card">
-      <h2>Today’s conditions</h2>
-      <div class="row">
-        <div>
-          <div class="bigTemp">${tempText}</div>
-          <div class="sub">${(cur.label || cat).toUpperCase()} • Feels like ${fmtTempC(cur.feelsC)}</div>
-        </div>
-        <div class="pill">Wind: <b>${fmtWindKmh(cur.windKmh)}</b></div>
-      </div>
-      <div style="height:10px"></div>
-      <div class="grid">
-        <div class="kv"><span>UV index</span><strong>${cur.uvIndex ?? "—"}</strong></div>
-        <div class="kv"><span>Humidity</span><strong>${cur.humidity != null ? Math.round(cur.humidity)+"%" : "—"}</strong></div>
-        <div class="kv"><span>Rain chance</span><strong>${cur.precipProb != null ? Math.round(cur.precipProb)+"%" : "—"}</strong></div>
-        <div class="kv"><span>Rain (mm)</span><strong>${fmtMm(cur.precipMm)}</strong></div>
-      </div>
+    <div class="hero">
+      <div class="heroTitle">${verdictLine}</div>
+      <div class="heroRange">${rangeText}</div>
+
+      <button class="heroLoc" id="homeLocationBtn" title="Change location">
+        <span>📍</span>
+        <small>${placeLabel}</small>
+        <span style="opacity:.9">▾</span>
+      </button>
     </div>
 
-    <div class="card">
-      <h2>Sunrise & Sunset</h2>
-      <div class="row">
-        <div class="pill">Sunrise <b>${fmtTime(data.sun?.sunrise)}</b></div>
-        <div class="pill">Sunset <b>${fmtTime(data.sun?.sunset)}</b></div>
-      </div>
+    <div class="glassCard">
+      <div class="glassTitle">🌬️ ${ex.title}</div>
+      <p class="glassSub">${ex.line}</p>
+      ${ex.meta ? `<div class="glassMeta">${ex.meta}</div>` : ""}
     </div>
 
-    <div class="note">Probably Weather = 2 sources + a vibe.</div>
+    <div class="glassCard">
+      <div class="glassTitle">☁️ Rain</div>
+      <p class="glassSub">
+        ${fmtMm(cur.precipMm)} mm · ${Math.round(cur.precipProb||0)}% chance<br/>
+        Sunrise ${sun.sunrise || "—"} · Sunset ${sun.sunset || "—"}
+      </p>
+    </div>
+
+    <div class="bottomMeta">
+      Confidence: <strong>${confidence()}</strong> ·
+      <a href="#" id="sourcesLink">Sources &gt;</a>
+    </div>
   `;
+
+  // Location dropdown behavior (mockup)
+  el("#homeLocationBtn")?.addEventListener("click", (e)=>{ e.preventDefault(); navTo("search"); });
+
+  // “Sources >” goes to settings for now
+  el("#sourcesLink")?.addEventListener("click", (e)=>{ e.preventDefault(); navTo("settings"); });
+
+  // Keep hidden meta updated for other views / accessibility
+  el("#pageTitle").textContent = placeLabel;
+  el("#pageSubtitle").textContent = phrase(cat, slot, fmtTempC(cur.tempC));
 }
 
 function renderHourly(data){
@@ -488,6 +586,6 @@ document.addEventListener("click", (e)=>{
 });
 
 document.addEventListener("DOMContentLoaded", ()=>{
-  el("#locationBtn").addEventListener("click", ()=> navTo("search"));
+  el("#settingsBtn").addEventListener("click", ()=> navTo("settings"));
   render();
 });

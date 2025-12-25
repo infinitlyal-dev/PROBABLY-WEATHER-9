@@ -16,7 +16,27 @@ export default async function handler(req, res){
       res.status(200).json({ results: [] });
       return;
     }
-    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=8&language=en&format=json`;
+    let name = q;
+    let country = "";
+
+    // Accept "ZA", "South Africa", "RSA" in the query and force SA results
+    const upper = q.toUpperCase();
+    if (/\bZA\b/.test(upper) || /SOUTH\s*AFRICA/i.test(q) || /\bRSA\b/.test(upper)){
+      country = "ZA";
+      name = q
+        .replace(/\bZA\b/ig, "")
+        .replace(/\bRSA\b/ig, "")
+        .replace(/south\s*africa/ig, "")
+        .replace(/[,]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    const url =
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}` +
+      `&count=8&language=en&format=json` +
+      (country ? `&country=${country}` : "");
+
     const data = await fetchJson(url);
     const results = (data.results || []).map(r => ({
       name: r.name,

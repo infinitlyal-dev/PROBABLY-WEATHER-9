@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="en">
 <head>
@@ -9,27 +8,33 @@
 </head>
 <body>
   <div id="bg"></div>
+
   <div class="app">
     <div class="phone">
-      <div class="header">
-        <div class="brand">Probably Weather</div>
-        <button id="locationBtn" class="locationBtn">Search / Favs</button>
+
+      <div class="header headerStack">
+        <div>
+          <div class="brand">Probably Weather</div>
+          <div class="tagline">Your best guess, without the drama.</div>
+        </div>
+
+        <button id="settingsBtn" class="iconBtn" aria-label="Settings">⚙️</button>
       </div>
 
-      <div class="card">
-        <h2 id="pageTitle">—</h2>
-        <div id="pageSubtitle" class="sub">Loading…</div>
-      </div>
+      <!-- Keep these for JS compatibility, but visually hidden -->
+      <div id="pageTitle" class="srOnly">—</div>
+      <div id="pageSubtitle" class="srOnly">—</div>
 
       <div id="main"></div>
 
       <div class="nav">
-        <button id="navHome" data-nav="home">Home</button>
-        <button id="navHourly" data-nav="hourly">Hourly</button>
-        <button id="navWeekly" data-nav="weekly">Weekly</button>
-        <button id="navSearch" data-nav="search">Search</button>
-        <button id="navSettings" data-nav="settings">Settings</button>
+        <button id="navHome" data-nav="home"><span class="navIcon">🏠</span><span class="navLabel">Home</span></button>
+        <button id="navHourly" data-nav="hourly"><span class="navIcon">🕒</span><span class="navLabel">Hourly</span></button>
+        <button id="navWeekly" data-nav="weekly"><span class="navIcon">📅</span><span class="navLabel">Week</span></button>
+        <button id="navSearch" data-nav="search"><span class="navIcon">🔎</span><span class="navLabel">Search</span></button>
+        <button id="navSettings" data-nav="settings"><span class="navIcon">⚙️</span><span class="navLabel">Settings</span></button>
       </div>
+
     </div>
   </div>
 
