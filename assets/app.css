@@ -15,17 +15,33 @@ body{
   color:var(--text);
   background:#111;
 }
+/* --- Background: blurred cover + foreground contain (less "zoomed" cropping) --- */
 #bg{
-  position:fixed; inset:0;
+  position:fixed;
+  inset:0;
+  z-index:-2;
+}
+#bgBlur{
+  position:absolute;
+  inset:0;
   background-size:cover;
   background-position:center;
-  filter:saturate(1.05) contrast(1.02);
-  transform:scale(1.02);
+  filter: blur(26px) saturate(1.05) contrast(1.02);
+  transform: scale(1.10);
 }
-#bg::after{
-  content:"";
-  position:absolute; inset:0;
-  background:linear-gradient(to bottom, rgba(0,0,0,0.10), rgba(0,0,0,0.40));
+#bgImg{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit: contain;
+  object-position: center;
+  filter:saturate(1.02) contrast(1.01);
+}
+#bgVignette{
+  position:absolute;
+  inset:0;
+  background:linear-gradient(to bottom, rgba(0,0,0,0.10), rgba(0,0,0,0.50));
 }
 .app{
   position:relative;
@@ -225,7 +241,7 @@ body{
 }
 
 .heroTitle{
-  font-size:52px;
+  font-size:44px;
   line-height:1.02;
   font-weight:800;
   letter-spacing:-0.03em;
@@ -233,10 +249,19 @@ body{
 
 .heroRange{
   margin-top:10px;
-  font-size:40px;
+  font-size:34px;
   font-weight:700;
   opacity:0.92;
 }
+
+.heroBadge{display:inline-flex;align-items:center;gap:8px;margin:6px 0 10px;}
+.badge{font-size:12px;letter-spacing:.08em;text-transform:uppercase;background:rgba(0,0,0,.25);padding:6px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.25);}
+.badgeText{font-size:13px;opacity:.9;}
+.badgeDot{width:8px;height:8px;border-radius:50%;display:inline-block;box-shadow:0 0 0 2px rgba(255,255,255,.25);}
+.badgeDot-high{background:rgba(70,255,170,.9);}
+.badgeDot-medium{background:rgba(255,210,70,.9);}
+.badgeDot-low{background:rgba(255,90,90,.9);}
+
 
 .heroLoc{
   margin-top:12px;
@@ -255,6 +280,86 @@ body{
 .heroLoc small{
   opacity:0.9;
   font-size:15px;
+}
+
+/* --- Home layout v11: keep the center of the photo clear --- */
+.homeLayout{
+  position:relative;
+  min-height:calc(100vh - 76px); /* allow for bottom nav */
+  padding:18px 16px 92px;
+  max-width:980px;
+  margin:0 auto;
+}
+
+.homeTop{
+  display:flex;
+  justify-content:center;
+}
+
+.sideRail{
+  position:absolute;
+  top:120px; /* starts below the hero title */
+  right:14px;
+  width:180px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.railTile{
+  background:rgba(0,0,0,0.18);
+  border:1px solid rgba(255,255,255,0.22);
+  border-radius:18px;
+  padding:12px 12px;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+  color:#fff;
+}
+
+.railLabel{font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.85;}
+.railValue{font-size:26px;font-weight:800;margin-top:4px;line-height:1.05;}
+.railSub{font-size:12px;opacity:.85;margin-top:4px;}
+
+.homeFooter{
+  position:absolute;
+  left:16px;
+  right:16px;
+  bottom:94px; /* above bottom nav */
+  display:flex;
+  justify-content:center;
+}
+
+.footerPill{
+  display:inline-flex;
+  gap:10px;
+  align-items:center;
+  padding:10px 14px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,0.22);
+  background:rgba(0,0,0,0.16);
+  backdrop-filter: blur(12px);
+  color:#fff;
+  font-size:13px;
+}
+
+@media (max-width: 560px){
+  .sideRail{width:150px; right:10px;}
+  .railValue{font-size:22px;}
+}
+
+@media (max-width: 420px){
+  /* on very small screens, drop the rail below the hero */
+  .sideRail{
+    position:relative;
+    top:auto;
+    right:auto;
+    width:100%;
+    flex-direction:row;
+    flex-wrap:wrap;
+    justify-content:center;
+    margin-top:14px;
+  }
+  .railTile{width:calc(50% - 10px);}
 }
 
 .glassCard{
@@ -314,3 +419,31 @@ body{
 }
 .navIcon{ font-size:18px; line-height:1; }
 .navLabel{ font-size:12px; opacity:0.9; }
+
+/* --- Elegance tweaks (v10.3) --- */
+.heroBadge{display:inline-flex;align-items:center;gap:8px;margin:6px 0 10px;justify-content:center}
+.badge{font-size:12px;letter-spacing:.08em;text-transform:uppercase;background:rgba(0,0,0,.22);padding:6px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.22)}
+.badgeText{font-size:13px;opacity:.9}
+.badgeDot{width:8px;height:8px;border-radius:50%;display:inline-block;box-shadow:0 0 0 2px rgba(255,255,255,.22)}
+.badgeDot-high{background:rgba(120, 255, 120, .85)}
+.badgeDot-medium{background:rgba(255, 220, 120, .85)}
+.badgeDot-low{background:rgba(255, 120, 120, .85)}
+
+/* Make content feel lighter so images show through */
+.glassCard{background:rgba(255,255,255,0.22)!important;border:1px solid rgba(255,255,255,0.20)!important;backdrop-filter:blur(18px)!important;box-shadow:0 10px 26px rgba(0,0,0,0.14)!important;padding:14px!important;border-radius:22px!important}
+.glassTitle{font-size:16px!important}
+.glassSub{opacity:.85!important}
+
+
+/* --- Elegance tweaks (v10.3) --- */
+.heroBadge{display:inline-flex;align-items:center;gap:8px;margin:6px 0 10px;justify-content:center}
+.badge{font-size:12px;letter-spacing:.08em;text-transform:uppercase;background:rgba(0,0,0,.22);padding:6px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.22)}
+.badgeText{font-size:13px;opacity:.9}
+.badgeDot{width:8px;height:8px;border-radius:50%;display:inline-block;box-shadow:0 0 0 2px rgba(255,255,255,.20)}
+.badgeDot-high{background:rgba(40,200,120,.95)}
+.badgeDot-medium{background:rgba(255,200,0,.95)}
+.badgeDot-low{background:rgba(255,90,90,.95)}
+
+/* Make cards lighter so backgrounds show through */
+.glassCard{background:rgba(255,255,255,.22)!important;border:1px solid rgba(255,255,255,.20)!important;backdrop-filter:blur(18px)!important;box-shadow:0 10px 26px rgba(0,0,0,.14)!important;padding:14px!important;border-radius:22px!important}
+

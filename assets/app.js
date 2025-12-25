@@ -61,10 +61,18 @@ async function setBackground(category, slot){
   for (const url of tries){
     const ok = await fetch(url, { method:"HEAD" }).then(r=>r.ok).catch(()=>false);
     if (ok){
-      el("#bg").style.backgroundImage = `url('${url}')`;
+      // Two-layer background (blurred cover + foreground contain)
+      const blur = document.getElementById('bgBlur');
+      const img  = document.getElementById('bgImg');
+      if (blur) blur.style.backgroundImage = `url('${url}')`;
+      if (img) img.src = url;
       return;
     }
   }
+  const blur = document.getElementById('bgBlur');
+  const img  = document.getElementById('bgImg');
+  if (blur) blur.style.backgroundImage = '';
+  if (img) img.src = '';
   el("#bg").style.background = "#111";
 }
 
@@ -85,7 +93,7 @@ function phrase(category, slot, tempText){
     },
     rain: {
       dawn: `Pack a jacket. You’ll thank yourself later.`,
-      day: `Rain’s doing its thing. Umbrella = hero.`,
+      day: `Clouds are going to cry like NZ at the World Cup.`,
       dusk: `Showers around. Drive like a saint.`,
       night: `Wet night. Watch the roads.`,
     },
@@ -260,52 +268,65 @@ async function renderHome(data){
 
   const ex = extremeCopy();
 
-  // Simple confidence (placeholder but believable)
-  function confidence(){
-    const pp = cur.precipProb || 0;
-    const w = cur.windKmh || 0;
-    if (cat === "clear" && pp < 20 && w < 25) return "High";
-    if (cat === "storm") return "Medium";
-    if (cat === "rain" && pp >= 70) return "High";
-    return "Medium";
-  }
+  const conf = (data.meta && data.meta.confidence) ? data.meta.confidence : "Medium";
 
   const placeLabel = `${state.place.name}${state.place.country ? ", " + state.place.country : ""}`;
 
+  const rainProb = Math.round(cur.precipProb || 0);
+  const rainMm = fmtMm(cur.precipMm);
+  const windKmh = Math.round(cur.windKmh || 0);
+  const gustKmh = Math.round(cur.gustKmh || 0);
+  const uv = (typeof cur.uv === "number") ? Math.round(cur.uv) : null;
+  const feels = (typeof cur.feelsC === "number") ? Math.round(cur.feelsC) : null;
+
+  const railTile = (label, value, sub, icon) => `
+    <div class="railTile">
+      <div class="railIcon" aria-hidden="true">${icon || ""}</div>
+      <div class="railLabel">${label}</div>
+      <div class="railValue">${value}</div>
+      ${sub ? `<div class="railSub">${sub}</div>` : ""}
+    </div>
+  `;
+
   el("#main").innerHTML = `
-    <div class="hero">
-      <div class="heroTitle">${verdictLine}</div>
-      <div class="heroRange">${rangeText}</div>
+    <div class="homeLayout">
+      <div class="homeTop">
+        <div class="hero">
+          <div class="heroBadge"><span class="badge">Probably</span><span class="badgeDot badgeDot-${conf.toLowerCase()}" aria-hidden="true"></span><span class="badgeText">${conf}</span></div>
+          <div class="heroTitle">${verdictLine}</div>
+          <div class="heroRange">${rangeText}</div>
 
-      <button class="heroLoc" id="homeLocationBtn" title="Change location">
-        <span>📍</span>
-        <small>${placeLabel}</small>
-        <span style="opacity:.9">▾</span>
-      </button>
-    </div>
+          <button class="heroLoc" id="homeLocationBtn" title="Change location">
+            <span>📍</span>
+            <small>${placeLabel}</small>
+            <span style="opacity:.9">▾</span>
+          </button>
+        </div>
+      </div>
 
-    <div class="glassCard">
-      <div class="glassTitle">🌬️ ${ex.title}</div>
-      <p class="glassSub">${ex.line}</p>
-      ${ex.meta ? `<div class="glassMeta">${ex.meta}</div>` : ""}
-    </div>
+      <aside class="sideRail" aria-label="Today metrics">
+        ${railTile("Rain", `${rainProb}%`, `${rainMm} • chance`, "💧")}
+        ${railTile("Wind", `${windKmh} km/h`, gustKmh ? `gusts ${gustKmh} km/h` : "", "🌬️")}
+        ${railTile("UV", uv === null ? "—" : `${uv}`, uv === null ? "" : (uv >= 8 ? "high" : uv >= 5 ? "moderate" : "low"), "☀️")}
+        ${railTile("Feels", feels === null ? "—" : `${feels}°`, "feels like", "🧍")}
+        <div class="railTile railTileWide">
+          <div class="railLabel">Today’s extreme</div>
+          <div class="railValue">${ex.title.replace("Today’s extreme: ", "")}</div>
+          <div class="railSub">${ex.line}</div>
+          ${ex.meta ? `<div class="railSub" style="opacity:.85">${ex.meta}</div>` : ""}
+        </div>
+      </aside>
 
-    <div class="glassCard">
-      <div class="glassTitle">☁️ Rain</div>
-      <p class="glassSub">
-        ${fmtMm(cur.precipMm)} mm · ${Math.round(cur.precipProb||0)}% chance<br/>
-        Sunrise ${sun.sunrise || "—"} · Sunset ${sun.sunset || "—"}
-      </p>
-    </div>
-
-    <div class="bottomMeta">
-      Confidence: <strong>${confidence()}</strong> ·
-      <a href="#" id="sourcesLink">Sources &gt;</a>
+      <div class="bottomMeta">
+        Confidence: <strong>${conf}</strong> ·
+        <a href="#" id="sourcesLink">Sources &gt;</a>
+        <span style="opacity:.85"> · Sunrise ${sun.sunrise || "—"} · Sunset ${sun.sunset || "—"}</span>
+      </div>
     </div>
   `;
 
   // Location dropdown behavior (mockup)
-  el("#homeLocationBtn")?.addEventListener("click", (e)=>{ e.preventDefault(); navTo("search"); });
+  el("#homeLocBtn")?.addEventListener("click", (e)=>{ e.preventDefault(); navTo("search"); });
 
   // “Sources >” goes to settings for now
   el("#sourcesLink")?.addEventListener("click", (e)=>{ e.preventDefault(); navTo("settings"); });

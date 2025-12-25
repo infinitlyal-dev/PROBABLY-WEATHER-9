@@ -192,6 +192,69 @@ export default async function handler(req, res){
 
     // Units conversion done in frontend; keep payload in metric base.
     res.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate=600");
+
+    // --- meta: show that we truly blend multiple sources ---
+    const sourceValues = {
+      openMeteo: curOm ? {
+        tempC: round(curOm.temperature_2m, 1),
+        windKmh: round(curOm.wind_speed_10m, 1),
+        precipMm: round((curOm.precipitation ?? 0), 1)
+      } : null,
+      metNo: metNow ? {
+        tempC: round(metNow.tempC, 1),
+        windKmh: round(((metNow.windMs ?? 0) * 3.6), 1),
+        precipMm: round((metNow.precipMm ?? 0), 1)
+      } : null,
+      weatherApi: curWa ? {
+        tempC: round(curWa.temp_c, 1),
+        windKmh: round(curWa.wind_kph, 1),
+        precipMm: round((curWa.precip_mm ?? 0), 1)
+      } : null
+    };
+
+    const present = Object.entries(sourceValues).filter(([, v]) => v);
+    const temps = present.map(([, v]) => v.tempC);
+    const winds = present.map(([, v]) => v.windKmh);
+    const precs = present.map(([, v]) => v.precipMm);
+
+    const range = (arr) => {
+      if (!arr.length) return null;
+      return [Math.min(...arr), Math.max(...arr)];
+    };
+
+    const tempRange = range(temps);
+    const windRange = range(winds);
+    const precipRange = range(precs);
+
+    const spread = (r) => (r ? round(r[1] - r[0], 1) : null);
+
+    const tempSpread = spread(tempRange);
+    const windSpread = spread(windRange);
+    const precipSpread = spread(precipRange);
+
+    const sourcesUsed = present.map(([k]) => k);
+
+    const confidence =
+      sourcesUsed.length < 2 ? "Medium" :
+      (tempSpread <= 1.5 && windSpread <= 7 && precipSpread <= 1) ? "High" :
+      (tempSpread <= 3.0 && windSpread <= 15 && precipSpread <= 3) ? "Medium" :
+      "Low";
+
+    const meta = {
+      sourcesUsed,
+      confidence,
+      ranges: {
+        tempC: tempRange,
+        windKmh: windRange,
+        precipMm: precipRange
+      },
+      spread: {
+        tempC: tempSpread,
+        windKmh: windSpread,
+        precipMm: precipSpread
+      }
+    };
+
     res.status(200).json({
       place:{lat,lon},
       current:{
@@ -208,7 +271,8 @@ export default async function handler(req, res){
       },
       sun:{sunrise, sunset},
       hourly: hours,
-      daily
+      daily,
+      meta
     });
   }catch(err){
     res.status(500).json({ error: "Server error", detail: String(err?.message || err) });
