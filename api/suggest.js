@@ -35,7 +35,7 @@ export default async function handler(req, res){
     const url =
       `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}` +
       `&count=8&language=en&format=json` +
-      (country ? `&country=${country}` : "");
+      (country ? `&country=${country}&country_code=${country}` : "");
 
     const data = await fetchJson(url);
     const results = (data.results || []).map(r => ({
