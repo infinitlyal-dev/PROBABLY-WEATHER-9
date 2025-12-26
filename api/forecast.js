@@ -1,280 +1,227 @@
-
-/**
- * /api/forecast?lat=-33.92&lon=18.42&units=metric|imperial
- *
- * Aggregates:
- * - Open-Meteo forecast (no key)
- * - MET Norway forecast (no key, requires a User-Agent)
- * - WeatherAPI current (optional, needs WEATHERAPI_KEY in Vercel env vars)
- *
- * Returns:
- * {
- *  place: {lat,lon},
- *  current: {tempC, feelsC, windKmh, humidity, precipMm, precipProb, visKm, uvIndex, category, label},
- *  sun: {sunrise, sunset},
- *  hourly: [{time, tempC, windKmh, precipMm, precipProb, humidity, category, label}],
- *  daily: [{date, minC, maxC, precipMm, precipProb, category, label}]
- * }
- */
-const UA = "ProbablyWeather/1.0 (+https://vercel.com)";
+// /api/forecast?lat=-33.9&lon=18.4
+// Aggregates 3 sources (Yr.no, Open-Meteo, WeatherAPI) into a simple median forecast.
 
 function median(nums){
-  const a = (nums||[]).filter(n => Number.isFinite(n)).sort((x,y)=>x-y);
+  const a = nums.filter(n => Number.isFinite(n)).sort((x,y)=>x-y);
   if (!a.length) return null;
-  const m = Math.floor(a.length/2);
-  return a.length%2 ? a[m] : (a[m-1]+a[m])/2;
-}
-function round(n,d=0){
-  if (!Number.isFinite(n)) return null;
-  const m = Math.pow(10,d);
-  return Math.round(n*m)/m;
-}
-function kmhFromMs(ms){
-  if (!Number.isFinite(ms)) return null;
-  return ms*3.6;
-}
-function pickCategory({tempC, windKmh, precipMm, precipProb, visKm}){
-  if ((Number.isFinite(precipMm) && precipMm >= 8) || (Number.isFinite(windKmh) && windKmh >= 55 && (precipProb||0) >= 40)) return "storm";
-  if ((Number.isFinite(precipMm) && precipMm >= 1.5) || (Number.isFinite(precipProb) && precipProb >= 60)) return "rain";
-  if (Number.isFinite(windKmh) && windKmh >= 35) return "wind";
-  if (Number.isFinite(visKm) && visKm <= 2.0) return "fog";
-  if (Number.isFinite(tempC) && tempC >= 28) return "heat";
-  if (Number.isFinite(tempC) && tempC <= 12) return "cold";
-  return "clear";
-}
-function labelFor(cat){
-  return ({
-    clear:"Clear",
-    cold:"Cold",
-    fog:"Fog",
-    heat:"Hot",
-    rain:"Rain",
-    storm:"Storm",
-    wind:"Wind"
-  })[cat] || "Clear";
+  const mid = Math.floor(a.length/2);
+  return a.length % 2 ? a[mid] : (a[mid-1] + a[mid]) / 2;
 }
 
-async function fetchJson(url, opts={}){
-  const res = await fetch(url, opts);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return await res.json();
+function pick(list){
+  // list: [{source, value}]
+  const vals = list.map(x=>x.value).filter(v=>Number.isFinite(v));
+  return median(vals);
 }
 
-async function openMeteo(lat, lon){
-  const url =
-    "https://api.open-meteo.com/v1/forecast"
-    + `?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}`
-    + "&current=temperature_2m,apparent_temperature,precipitation,relative_humidity_2m,wind_speed_10m,visibility,precipitation_probability,uv_index"
-    + "&hourly=temperature_2m,precipitation,precipitation_probability,relative_humidity_2m,wind_speed_10m,visibility"
-    + "&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,sunrise,sunset"
-    + "&timezone=auto";
-  return await fetchJson(url);
+function confidenceFromCount(n){
+  if (n >= 3) return 'High';
+  if (n === 2) return 'Medium';
+  return 'Low';
 }
 
-async function metNo(lat, lon){
-  const url = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`;
-  const res = await fetch(url, { headers: { "User-Agent": UA } });
-  if (!res.ok) throw new Error(`met.no HTTP ${res.status}`);
-  return await res.json();
+function toKmh(ms){
+  return Number.isFinite(ms) ? ms * 3.6 : null;
 }
 
-function metNoToHourly(met){
-  // returns map ISO -> {tempC, windMs, precipMm}
-  const out = new Map();
-  const ts = met?.properties?.timeseries || [];
-  for (const t of ts){
-    const time = t.time;
-    const det = t?.data?.instant?.details || {};
-    const next1h = t?.data?.next_1_hours?.details || {};
-    out.set(time, {
-      tempC: det.air_temperature,
-      windMs: det.wind_speed,
-      precipMm: next1h.precipitation_amount
-    });
+async function fetchJSON(url, opts={}){
+  const controller = new AbortController();
+  const t = setTimeout(()=>controller.abort(), opts.timeoutMs ?? 9000);
+  try{
+    const res = await fetch(url, { headers: opts.headers || {}, signal: controller.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } finally {
+    clearTimeout(t);
   }
-  return out;
 }
 
-async function weatherApiCurrent(lat, lon){
-  const key = process.env.WEATHERAPI_KEY;
-  if (!key) return null;
-  const url = `https://api.weatherapi.com/v1/current.json?key=${encodeURIComponent(key)}&q=${encodeURIComponent(lat + "," + lon)}&aqi=no`;
-  return await fetchJson(url);
+async function fetchYr(lat, lon){
+  const url = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${lat}&lon=${lon}`;
+  const json = await fetchJSON(url, {
+    headers: {
+      // Required by met.no terms: identify your app.
+      'User-Agent': 'ProbablyWeather/1.0 (demo; contact: none)'
+    },
+    timeoutMs: 9000
+  });
+  const ts = json?.properties?.timeseries;
+  if (!Array.isArray(ts) || !ts.length) throw new Error('No Yr timeseries');
+
+  const now = ts[0];
+  const inst = now?.data?.instant?.details || {};
+  const next1 = now?.data?.next_1_hours?.details || {};
+
+  const current = {
+    tempC: inst.air_temperature,
+    windKmh: toKmh(inst.wind_speed),
+    gustKmh: toKmh(inst.wind_speed_of_gust),
+    precipMm: next1.precipitation_amount,
+    precipProb: null, // Yr compact does not always provide
+    uv: inst.ultraviolet_index_clear_sky,
+    visKm: null,
+    condition: now?.data?.next_1_hours?.summary?.symbol_code || null,
+  };
+
+  // Next 24 hours at 1h granularity (best-effort)
+  const hourly = ts.slice(0, 24).map(row => {
+    const i = row?.data?.instant?.details || {};
+    const n1 = row?.data?.next_1_hours?.details || {};
+    const summary = row?.data?.next_1_hours?.summary || {};
+    return {
+      time: row.time,
+      tempC: i.air_temperature,
+      windKmh: toKmh(i.wind_speed),
+      gustKmh: toKmh(i.wind_speed_of_gust),
+      precipMm: n1.precipitation_amount,
+      precipProb: null,
+      condition: summary.symbol_code || null,
+    };
+  });
+
+  return { source: 'Yr.no', current, hourly };
+}
+
+async function fetchOpenMeteo(lat, lon){
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
+    + `&current=temperature_2m,wind_speed_10m,wind_gusts_10m,precipitation,weather_code,uv_index,visibility`
+    + `&hourly=temperature_2m,wind_speed_10m,wind_gusts_10m,precipitation,precipitation_probability,weather_code`
+    + `&forecast_days=2&timezone=auto`;
+
+  const json = await fetchJSON(url, { timeoutMs: 9000 });
+
+  const c = json.current || {};
+  const current = {
+    tempC: c.temperature_2m,
+    windKmh: c.wind_speed_10m,
+    gustKmh: c.wind_gusts_10m,
+    precipMm: c.precipitation,
+    precipProb: null,
+    uv: c.uv_index,
+    visKm: Number.isFinite(c.visibility) ? c.visibility/1000 : null,
+    condition: Number.isFinite(c.weather_code) ? `om_${c.weather_code}` : null,
+  };
+
+  const h = json.hourly || {};
+  const times = h.time || [];
+  const hourly = times.slice(0, 24).map((t, idx) => ({
+    time: t,
+    tempC: h.temperature_2m?.[idx],
+    windKmh: h.wind_speed_10m?.[idx],
+    gustKmh: h.wind_gusts_10m?.[idx],
+    precipMm: h.precipitation?.[idx],
+    precipProb: h.precipitation_probability?.[idx],
+    condition: Number.isFinite(h.weather_code?.[idx]) ? `om_${h.weather_code[idx]}` : null,
+  }));
+
+  return { source: 'Open-Meteo', current, hourly };
+}
+
+async function fetchWeatherAPI(lat, lon, key){
+  const url = `https://api.weatherapi.com/v1/forecast.json?key=${encodeURIComponent(key)}`
+    + `&q=${lat},${lon}&days=2&aqi=no&alerts=no`;
+
+  const json = await fetchJSON(url, { timeoutMs: 9000 });
+  const c = json.current || {};
+  const current = {
+    tempC: c.temp_c,
+    windKmh: c.wind_kph,
+    gustKmh: c.gust_kph,
+    precipMm: c.precip_mm,
+    precipProb: null,
+    uv: c.uv,
+    visKm: c.vis_km,
+    condition: c?.condition?.text || null,
+  };
+
+  // Flatten hourly from day[0] + day[1]
+  const hours = [];
+  const f = json.forecast?.forecastday || [];
+  for (const d of f){
+    for (const hr of (d.hour || [])){
+      hours.push({
+        time: hr.time,
+        tempC: hr.temp_c,
+        windKmh: hr.wind_kph,
+        gustKmh: hr.gust_kph,
+        precipMm: hr.precip_mm,
+        precipProb: hr.chance_of_rain ?? hr.chance_of_snow ?? null,
+        condition: hr?.condition?.text || null,
+      });
+    }
+  }
+
+  return { source: 'WeatherAPI', current, hourly: hours.slice(0,24) };
 }
 
 export default async function handler(req, res){
   try{
     const lat = Number(req.query.lat);
     const lon = Number(req.query.lon);
-    const units = (req.query.units || "metric") === "imperial" ? "imperial" : "metric";
-
     if (!Number.isFinite(lat) || !Number.isFinite(lon)){
-      res.status(400).json({ error: "Missing lat/lon" });
+      res.status(400).json({ error: 'Missing lat/lon' });
       return;
     }
 
-    const [om, met, wa] = await Promise.allSettled([
-      openMeteo(lat, lon),
-      metNo(lat, lon),
-      weatherApiCurrent(lat, lon)
+    const key = process.env.WEATHERAPI_KEY;
+    if (!key){
+      res.status(500).json({ error: 'WEATHERAPI_KEY not set on server' });
+      return;
+    }
+
+    const results = await Promise.allSettled([
+      fetchYr(lat, lon),
+      fetchOpenMeteo(lat, lon),
+      fetchWeatherAPI(lat, lon, key),
     ]);
 
-    const omv = om.status === "fulfilled" ? om.value : null;
-    const metv = met.status === "fulfilled" ? met.value : null;
-    const wav = wa.status === "fulfilled" ? wa.value : null;
+    const sources = results
+      .filter(r => r.status === 'fulfilled')
+      .map(r => r.value);
 
-    const metHourly = metv ? metNoToHourly(metv) : new Map();
+    if (!sources.length){
+      res.status(502).json({ error: 'All sources failed' });
+      return;
+    }
 
-    // Current (median of Open-Meteo + met.no, plus WeatherAPI extras if available)
-    const curOm = omv?.current || {};
-    const metNow = metHourly.get(omv?.current?.time) || null;
+    const usedNames = sources.map(s=>s.source);
 
-    const tempC = median([curOm.temperature_2m, metNow?.tempC]);
-    const feelsC = curOm.apparent_temperature ?? null;
-    const windKmh = median([curOm.wind_speed_10m, metNow?.windMs != null ? kmhFromMs(metNow.windMs) : null]);
-    const humidity = curOm.relative_humidity_2m ?? null;
-    const precipMm = median([curOm.precipitation, metNow?.precipMm]);
-    const precipProb = curOm.precipitation_probability ?? null;
-    const visKm = curOm.visibility != null ? curOm.visibility / 1000 : null;
+    // Build current median
+    const cur = {
+      tempC: median(sources.map(s=>s.current.tempC)),
+      windKmh: median(sources.map(s=>s.current.windKmh)),
+      gustKmh: median(sources.map(s=>s.current.gustKmh)),
+      precipMm: median(sources.map(s=>s.current.precipMm)),
+      precipProb: median(sources.map(s=>s.current.precipProb)),
+      uv: median(sources.map(s=>s.current.uv)),
+      visKm: median(sources.map(s=>s.current.visKm)),
+      condition: sources.find(s=>s.current.condition)?.current.condition || null,
+    };
 
-    const uvIndex = wav?.current?.uv ?? curOm.uv_index ?? null;
-
-    const cat = pickCategory({ tempC, windKmh, precipMm, precipProb, visKm });
-
-    const sunrise = omv?.daily?.sunrise?.[0] || null;
-    const sunset  = omv?.daily?.sunset?.[0] || null;
-
-    // Hourly - every 3 hours, next 24h
+    // Hourly median (aligned by index, best-effort)
     const hours = [];
-    const tArr = omv?.hourly?.time || [];
-    for (let i=0; i<tArr.length && hours.length<8; i+=3){
-      const time = tArr[i];
-      const metH = metHourly.get(time) || null;
-      const hTempC = median([omv?.hourly?.temperature_2m?.[i], metH?.tempC]);
-      const hWindKmh = median([omv?.hourly?.wind_speed_10m?.[i], metH?.windMs != null ? kmhFromMs(metH.windMs) : null]);
-      const hPrecipMm = median([omv?.hourly?.precipitation?.[i], metH?.precipMm]);
-      const hPrecipProb = omv?.hourly?.precipitation_probability?.[i] ?? null;
-      const hHum = omv?.hourly?.relative_humidity_2m?.[i] ?? null;
-      const hVisKm = omv?.hourly?.visibility?.[i] != null ? omv.hourly.visibility[i]/1000 : null;
-      const hCat = pickCategory({ tempC: hTempC, windKmh: hWindKmh, precipMm: hPrecipMm, precipProb: hPrecipProb, visKm: hVisKm });
+    for (let i=0;i<24;i++){
+      const time = sources.find(s=>s.hourly?.[i]?.time)?.hourly?.[i]?.time || null;
       hours.push({
         time,
-        tempC: round(hTempC,1),
-        windKmh: round(hWindKmh,1),
-        precipMm: round(hPrecipMm,1),
-        precipProb: hPrecipProb != null ? round(hPrecipProb,0) : null,
-        humidity: hHum != null ? round(hHum,0) : null,
-        visKm: hVisKm != null ? round(hVisKm,1) : null,
-        category: hCat,
-        label: labelFor(hCat)
+        tempC: median(sources.map(s=>s.hourly?.[i]?.tempC)),
+        windKmh: median(sources.map(s=>s.hourly?.[i]?.windKmh)),
+        gustKmh: median(sources.map(s=>s.hourly?.[i]?.gustKmh)),
+        precipMm: median(sources.map(s=>s.hourly?.[i]?.precipMm)),
+        precipProb: median(sources.map(s=>s.hourly?.[i]?.precipProb)),
+        condition: sources.find(s=>s.hourly?.[i]?.condition)?.hourly?.[i]?.condition || null,
       });
     }
 
-    // Daily (next 7)
-    const daily = [];
-    const dTime = omv?.daily?.time || [];
-    for (let i=0; i<dTime.length && i<7; i++){
-      const minC = omv?.daily?.temperature_2m_min?.[i];
-      const maxC = omv?.daily?.temperature_2m_max?.[i];
-      const dPrecipMm = omv?.daily?.precipitation_sum?.[i];
-      const dProb = omv?.daily?.precipitation_probability_max?.[i];
-      const dCat = pickCategory({ tempC: maxC, windKmh: null, precipMm: dPrecipMm, precipProb: dProb, visKm: null });
-      daily.push({
-        date: dTime[i],
-        minC: round(minC,1),
-        maxC: round(maxC,1),
-        precipMm: round(dPrecipMm,1),
-        precipProb: dProb != null ? round(dProb,0) : null,
-        category: dCat,
-        label: labelFor(dCat)
-      });
-    }
-
-    // Units conversion done in frontend; keep payload in metric base.
-    res.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate=600");
-
-    // --- meta: show that we truly blend multiple sources ---
-    const sourceValues = {
-      openMeteo: curOm ? {
-        tempC: round(curOm.temperature_2m, 1),
-        windKmh: round(curOm.wind_speed_10m, 1),
-        precipMm: round((curOm.precipitation ?? 0), 1)
-      } : null,
-      metNo: metNow ? {
-        tempC: round(metNow.tempC, 1),
-        windKmh: round(((metNow.windMs ?? 0) * 3.6), 1),
-        precipMm: round((metNow.precipMm ?? 0), 1)
-      } : null,
-      weatherApi: curWa ? {
-        tempC: round(curWa.temp_c, 1),
-        windKmh: round(curWa.wind_kph, 1),
-        precipMm: round((curWa.precip_mm ?? 0), 1)
-      } : null
-    };
-
-    const present = Object.entries(sourceValues).filter(([, v]) => v);
-    const temps = present.map(([, v]) => v.tempC);
-    const winds = present.map(([, v]) => v.windKmh);
-    const precs = present.map(([, v]) => v.precipMm);
-
-    const range = (arr) => {
-      if (!arr.length) return null;
-      return [Math.min(...arr), Math.max(...arr)];
-    };
-
-    const tempRange = range(temps);
-    const windRange = range(winds);
-    const precipRange = range(precs);
-
-    const spread = (r) => (r ? round(r[1] - r[0], 1) : null);
-
-    const tempSpread = spread(tempRange);
-    const windSpread = spread(windRange);
-    const precipSpread = spread(precipRange);
-
-    const sourcesUsed = present.map(([k]) => k);
-
-    const confidence =
-      sourcesUsed.length < 2 ? "Medium" :
-      (tempSpread <= 1.5 && windSpread <= 7 && precipSpread <= 1) ? "High" :
-      (tempSpread <= 3.0 && windSpread <= 15 && precipSpread <= 3) ? "Medium" :
-      "Low";
-
-    const meta = {
-      sourcesUsed,
-      confidence,
-      ranges: {
-        tempC: tempRange,
-        windKmh: windRange,
-        precipMm: precipRange
-      },
-      spread: {
-        tempC: tempSpread,
-        windKmh: windSpread,
-        precipMm: precipSpread
-      }
-    };
-
+    res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=3600');
     res.status(200).json({
-      place:{lat,lon},
-      current:{
-        tempC: round(tempC,1),
-        feelsC: round(feelsC,1),
-        windKmh: round(windKmh,1),
-        humidity: humidity != null ? round(humidity,0) : null,
-        precipMm: round(precipMm,1),
-        precipProb: precipProb != null ? round(precipProb,0) : null,
-        visKm: visKm != null ? round(visKm,1) : null,
-        uvIndex: uvIndex != null ? round(uvIndex,1) : null,
-        category: cat,
-        label: labelFor(cat)
-      },
-      sun:{sunrise, sunset},
+      current: cur,
       hourly: hours,
-      daily,
-      meta
+      sources: usedNames,
+      confidence: confidenceFromCount(usedNames.length),
+      meta: { sourcesAttempted: 3, sourcesUsed: usedNames.length },
     });
-  }catch(err){
-    res.status(500).json({ error: "Server error", detail: String(err?.message || err) });
+  } catch (err){
+    res.status(500).json({ error: err?.message || String(err) });
   }
 }
