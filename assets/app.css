@@ -1,414 +1,256 @@
-
-/* =========================================================
-   Probably Weather — clean UI CSS (matches current class names)
-   Works mobile-first, becomes wider + side rail on desktop
-   ========================================================= */
-
-/* ---------- Theme tokens ---------- */
 :root{
-  --card: rgba(255,255,255,0.18);
-  --card2: rgba(255,255,255,0.12);
-  --stroke: rgba(255,255,255,0.16);
-  --stroke2: rgba(0,0,0,0.18);
-  --text: rgba(255,255,255,0.92);
-  --muted: rgba(255,255,255,0.70);
-  --shadow: 0 14px 40px rgba(0,0,0,0.22);
-  --shadow2: 0 10px 28px rgba(0,0,0,0.18);
-  --radius: 22px;
-  --radius2: 18px;
-  --navH: 92px;
+  --card: rgba(255,255,255,0.82);
+  --card2: rgba(255,255,255,0.72);
+  --text: #0b0b0b;
+  --muted: rgba(0,0,0,0.62);
+  --stroke: rgba(0,0,0,0.12);
+  --shadow: 0 10px 30px rgba(0,0,0,0.18);
 }
 
 *{ box-sizing:border-box; }
-html,body{ height:100%; }
+
+html,body{
+  height:100%;
+}
+
 body{
   margin:0;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  color: var(--text);
-  background:#0a0a0a;
-  overflow:hidden;
+  color:var(--text);
+  background:#111;
+  overflow-x:hidden;
 }
 
-/* ---------- Background layers ---------- */
+/* ---- Background: blurred cover + full-screen image ---- */
 #bg{
   position:fixed;
   inset:0;
-  z-index:-3;
-  overflow:hidden;
+  z-index:-2;
 }
-#bgImg{
+
+#bgBlur{
   position:absolute;
   inset:0;
   background-size:cover;
   background-position:center;
-  transform: scale(1.06);
+  filter: blur(26px) saturate(1.05) contrast(1.02);
+  transform: scale(1.10);
 }
-#bgBlur{
+
+/* THIS is the key fix:
+   - contain = "poster strip"
+   - cover = "full-screen background" */
+#bgImg{
   position:absolute;
   inset:0;
-  backdrop-filter: blur(22px);
-  -webkit-backdrop-filter: blur(22px);
-  background: rgba(0,0,0,0.12);
-}
-
-/* ---------- App container ---------- */
-.app{
-  min-height:100vh;
-  display:flex;
-  justify-content:center;
-  align-items:stretch;
-  padding: 18px 14px 18px;
-}
-
-/* “phone” is the main glass frame */
-.phone{
-  width: min(980px, 100%);
-  max-width: 980px;
-  min-height: calc(100vh - 36px);
-  border-radius: var(--radius);
-  border: 1px solid var(--stroke);
-  background: rgba(0,0,0,0.18);
-  box-shadow: var(--shadow);
-  overflow:hidden;
-  position:relative;
-}
-
-/* inner padding so content doesn’t collide with edges */
-#screen{
+  width:100%;
   height:100%;
-  padding: 22px 22px calc(var(--navH) + 18px);
-  overflow:auto;
-}
-#screen::-webkit-scrollbar{ width: 10px; }
-#screen::-webkit-scrollbar-thumb{
-  background: rgba(255,255,255,0.14);
-  border-radius: 10px;
+  object-fit: cover;
+  object-position: center;
+  filter:saturate(1.02) contrast(1.01);
 }
 
-/* Make it more “mobile-ish” on small screens */
-@media (max-width: 520px){
-  .app{ padding: 10px; }
-  .phone{
-    border-radius: 18px;
-    min-height: calc(100vh - 20px);
-  }
-  #screen{
-    padding: 18px 16px calc(var(--navH) + 14px);
-  }
+#bgVignette{
+  position:absolute;
+  inset:0;
+  background:linear-gradient(to bottom, rgba(0,0,0,0.10), rgba(0,0,0,0.50));
 }
 
-/* ---------- Shared “glass card” ---------- */
-.glassCard{
-  background: linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.08));
-  border: 1px solid rgba(255,255,255,0.14);
-  box-shadow: var(--shadow2);
-  border-radius: var(--radius2);
-}
-
-/* ---------- Top header (Home/Hourly/Week/Search/Settings titles) ---------- */
-.topHeader{
+/* ---- App layout ---- */
+.app{
+  position:relative;
+  min-height:100vh;
+  width:100%;
   display:flex;
-  justify-content:space-between;
-  align-items:flex-start;
-  gap: 14px;
-  margin-bottom: 18px;
-}
-.topHeader h1{
-  margin:0;
-  font-size: 28px;
-  line-height: 1.1;
-  letter-spacing: 0.2px;
-  text-shadow: 0 4px 18px rgba(0,0,0,0.35);
-}
-.topHeader .sub{
-  margin-top: 6px;
-  font-size: 14px;
-  color: var(--muted);
+  justify-content:center; /* mobile default: centered column */
 }
 
-/* ---------- Home layout ---------- */
-.homeLayout{
+/* "phone" container (mobile behaviour) */
+.phone{
+  width:100%;
+  max-width:520px;
+  padding:18px 16px 88px;
+  margin:0 auto;
+}
+
+/* Desktop: allow full-width layout */
+@media (min-width: 900px){
+  .app{ justify-content:stretch; }
+  .phone{
+    max-width:none;
+    width:100%;
+    padding:28px 36px 96px;
+    margin:0;
+  }
+}
+
+/* ---- Header ---- */
+.header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:12px;
+}
+
+.brand{
+  font-weight:800;
+  letter-spacing:0.2px;
+  color:#fff;
+  text-shadow:0 3px 18px rgba(0,0,0,0.45);
+}
+
+.tagline{
+  font-size:13px;
+  color:rgba(255,255,255,0.75);
+  margin-top:2px;
+}
+
+/* ---- Main hero / panels ---- */
+.hero{
   display:grid;
   grid-template-columns: 1fr;
-  gap: 16px;
+  gap:14px;
+  margin-top:10px;
 }
 
-.homeTop{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap: 12px;
+@media (min-width: 900px){
+  .hero{
+    grid-template-columns: 1.4fr 1fr;
+    align-items:start;
+    gap:22px;
+  }
 }
 
-/* Hero */
-.hero{
-  padding: 20px 18px;
+.bigTitle{
+  font-size:56px;
+  line-height:0.95;
+  font-weight:900;
+  color:#fff;
+  text-shadow:0 10px 32px rgba(0,0,0,0.45);
 }
-.heroBadge{
+
+@media (max-width: 520px){
+  .bigTitle{ font-size:44px; }
+}
+
+.temp{
+  font-size:54px;
+  font-weight:900;
+  color:#fff;
+  margin-top:10px;
+  text-shadow:0 10px 32px rgba(0,0,0,0.45);
+}
+
+@media (max-width: 520px){
+  .temp{ font-size:44px; }
+}
+
+.pillRow{
   display:flex;
   align-items:center;
-  gap: 10px;
-  font-size: 12px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.78);
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:10px;
 }
-.heroBadge .dot{
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.70);
-  box-shadow: 0 0 14px rgba(255,255,255,0.35);
-}
-.heroMain{
-  margin-top: 14px;
-  display:flex;
-  flex-direction:column;
-  gap: 10px;
-}
-.heroLine{
-  font-size: 56px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  text-shadow: 0 10px 26px rgba(0,0,0,0.40);
-}
-.heroTemp{
-  font-size: 40px;
-  font-weight: 700;
-  color: rgba(255,255,255,0.92);
-  margin-top: -8px;
-}
-.locationPill{
+
+.pill{
   display:inline-flex;
   align-items:center;
-  gap: 10px;
-  padding: 10px 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(0,0,0,0.18);
-  max-width: 100%;
+  gap:8px;
+  padding:8px 12px;
+  border-radius:999px;
+  background:rgba(0,0,0,0.35);
+  border:1px solid rgba(255,255,255,0.12);
+  color:#fff;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.22);
+  font-size:14px;
 }
-.locationPill select{
-  background: transparent;
-  color: rgba(255,255,255,0.92);
-  border: none;
-  outline: none;
-  font-size: 14px;
-  max-width: 100%;
-}
-.locationPill option{ color:#111; }
 
-/* Side rail tiles */
-.sideRail{
-  display:grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
+/* ---- Cards ---- */
+.card{
+  background: rgba(0,0,0,0.35);
+  border:1px solid rgba(255,255,255,0.12);
+  color:#fff;
+  border-radius:18px;
+  padding:14px 14px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 12px 34px rgba(0,0,0,0.25);
 }
-.railTile{
-  padding: 14px 14px 12px;
+
+.cardTitle{
+  opacity:0.85;
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:0.10em;
 }
-.railTile .label{
+
+.cardValue{
+  font-size:28px;
+  font-weight:900;
+  margin-top:4px;
+}
+
+.cardSub{
+  opacity:0.75;
+  font-size:13px;
+  margin-top:2px;
+}
+
+/* ---- Bottom nav ---- */
+.nav{
+  position:fixed;
+  left:0;
+  right:0;
+  bottom:0;
+  z-index:20;
+  padding:14px 16px 16px;
+}
+
+.navInner{
+  width:min(1100px, 100%);
+  margin:0 auto;
   display:flex;
-  align-items:center;
-  gap: 8px;
-  font-size: 12px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.72);
-}
-.railTile .big{
-  margin-top: 6px;
-  font-size: 26px;
-  font-weight: 800;
-}
-.railTile .small{
-  margin-top: 2px;
-  font-size: 13px;
-  color: rgba(255,255,255,0.72);
-}
-
-/* Bottom line under hero (confidence/sources/sunrise/sunset) */
-.footerLine{
-  margin-top: 16px;
-  font-size: 14px;
-  color: rgba(255,255,255,0.78);
-}
-.footerLine a{
-  color: rgba(255,255,255,0.92);
-  text-decoration: none;
-  border-bottom: 1px solid rgba(255,255,255,0.24);
-}
-.footerLine a:hover{ border-bottom-color: rgba(255,255,255,0.55); }
-
-/* Desktop: hero + sideRail next to it */
-@media (min-width: 860px){
-  .homeLayout{
-    grid-template-columns: 1.25fr 0.75fr;
-    align-items:start;
-  }
-  .heroLine{ font-size: 68px; }
-  .heroTemp{ font-size: 44px; }
-}
-
-/* ---------- Hourly cards row ---------- */
-.hourlyWrap{
-  padding: 18px;
-}
-.hourlyRow{
-  display:flex;
-  gap: 12px;
-  overflow:auto;
-  padding-bottom: 6px;
-}
-.hourCard{
-  min-width: 140px;
-  padding: 14px;
-}
-.hourCard .t{
-  font-size: 14px;
-  color: rgba(255,255,255,0.78);
-}
-.hourCard .deg{
-  font-size: 44px;
-  font-weight: 800;
-  margin-top: 6px;
-}
-.hourCard .meta{
-  margin-top: 8px;
-  font-size: 13px;
-  color: rgba(255,255,255,0.74);
-  line-height: 1.35;
-}
-
-/* ---------- Weekly ---------- */
-.weekWrap{
-  padding: 18px;
-}
-.weekItem{
-  display:flex;
+  gap:14px;
   justify-content:space-between;
   align-items:center;
-  padding: 14px 14px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(0,0,0,0.12);
-  margin-bottom: 10px;
-}
-.weekItem .day{
-  font-weight: 700;
-}
-.weekItem .temps{
-  color: rgba(255,255,255,0.82);
+  padding:14px 14px;
+  border-radius:18px;
+  background: rgba(0,0,0,0.35);
+  border:1px solid rgba(255,255,255,0.12);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 12px 34px rgba(0,0,0,0.25);
+  color:#fff;
 }
 
-/* ---------- Search ---------- */
-.searchWrap{
-  padding: 18px;
-}
-.searchTop{
-  display:flex;
-  align-items:center;
-  gap: 12px;
-}
-.searchInput{
-  flex: 1;
-  padding: 12px 14px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(0,0,0,0.18);
-  color: rgba(255,255,255,0.9);
-  outline:none;
-}
-.searchCancel{
-  color: rgba(255,255,255,0.85);
-  cursor:pointer;
-  user-select:none;
-}
-.searchSectionTitle{
-  margin-top: 16px;
-  font-size: 12px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.65);
-}
-.searchList{
-  margin-top: 10px;
-}
-.searchItem{
-  padding: 12px 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(0,0,0,0.14);
-  margin-bottom: 10px;
-}
-
-/* ---------- Settings ---------- */
-.settingsWrap{
-  padding: 18px;
-}
-.settingsGroupTitle{
-  margin: 18px 0 10px;
-  font-size: 12px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.65);
-}
-.settingsRow{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  padding: 14px 14px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(0,0,0,0.14);
-  margin-bottom: 10px;
-}
-.settingsRow .right{
-  color: rgba(255,255,255,0.78);
-}
-
-/* ---------- Bottom nav ---------- */
-.bottomNav{
-  position:absolute;
-  left: 18px;
-  right: 18px;
-  bottom: 14px;
-  height: var(--navH);
-  border-radius: 22px;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(0,0,0,0.22);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  display:flex;
-  align-items:center;
-  justify-content:space-around;
-  gap: 8px;
-  padding: 10px;
-}
 .navItem{
-  flex:1;
-  height: 100%;
-  border-radius: 18px;
   display:flex;
+  flex-direction:column;
   align-items:center;
-  justify-content:center;
-  gap: 10px;
-  color: rgba(255,255,255,0.78);
+  gap:6px;
+  padding:10px 12px;
+  border-radius:14px;
+  min-width:70px;
+  color:#fff;
+  opacity:0.85;
   user-select:none;
-  cursor:pointer;
-}
-.navItem.active{
-  background: rgba(255,255,255,0.12);
-  color: rgba(255,255,255,0.92);
-  border: 1px solid rgba(255,255,255,0.14);
-}
-.navItem .icon{
-  font-size: 18px;
-}
-.navItem .label{
-  font-size: 13px;
-  font-weight: 650;
 }
 
-/* ---------- Small utility ---------- */
-a{ color: inherit; }
+.navItem.active{
+  opacity:1;
+  background: rgba(255,255,255,0.10);
+  border:1px solid rgba(255,255,255,0.14);
+}
+
+.navLabel{
+  font-size:12px;
+}
+
+/* ---- Utility ---- */
+a{ color:#b8d7ff; }
+a:hover{ opacity:0.9; }
+
