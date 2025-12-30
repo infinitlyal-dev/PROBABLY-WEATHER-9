@@ -25,22 +25,22 @@ body, html {
 #bgBlur {
   position: absolute;
   inset: 0;
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  background: rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(2px);  /* Very light blur - just enough to soften */
+  -webkit-backdrop-filter: blur(2px);
+  background: rgba(0, 0, 0, 0.05);  /* Almost no darken */
 }
 
 #bgVignette {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.5) 100%);
+  background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.3) 100%);  /* Much softer edges */
 }
 
 .app-container {
   position: relative;
   height: 100vh;
   display: grid;
-  grid-template-columns: 1fr 360px;
+  grid-template-columns: 1fr 360px;  /* Slightly narrower rail for elegance */
   grid-template-rows: 1fr auto;
   grid-template-areas:
     "main rail"
@@ -53,7 +53,7 @@ body, html {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  text-shadow: 0 4px 30px rgba(0,0,0,0.9);
+  text-shadow: 0 2px 15px rgba(0,0,0,0.8);  /* Reduced shadow - image is bright */
   max-width: 700px;
 }
 
@@ -88,11 +88,11 @@ body, html {
 }
 
 .headline {
-  font-size: 4.6rem;
+  font-size: 4.6rem;  /* Slightly smaller for perfect balance */
   font-weight: 700;
   line-height: 1;
   margin: 0 0 1rem;
-  text-shadow: 0 4px 40px rgba(0,0,0,1);
+  text-shadow: 0 2px 20px rgba(0,0,0,0.9);
 }
 
 .temperature {
@@ -103,9 +103,9 @@ body, html {
 }
 
 .supporting-line {
-  font-size: 1.8rem;
+  font-size: 1.8rem;  /* Slightly smaller */
   opacity: 0.95;
-  margin: 1.5rem 0 0;
+  margin: 1rem 0 0;
 }
 
 .side-rail {
@@ -118,12 +118,12 @@ body, html {
 }
 
 .rail-item {
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.10);  /* Slightly more transparent */
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border-radius: 18px;
   padding: 1.4rem;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   display: flex;
   align-items: center;
   gap: 1.2rem;
@@ -148,7 +148,7 @@ body, html {
 .nav {
   grid-area: nav;
   display: flex;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.25);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid rgba(255,255,255,0.1);
@@ -181,7 +181,7 @@ body, html {
   font-size: 0.85rem;
 }
 
-/* Mobile styles - we'll perfect this next */
+/* Mobile styles */
 @media (max-width: 1023px) {
   .app-container {
     grid-template-columns: 1fr;
