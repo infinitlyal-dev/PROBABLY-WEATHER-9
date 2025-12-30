@@ -296,7 +296,7 @@ async function renderHome(data){
           <div class="heroTitle">${verdictLine}</div>
           <div class="heroRange">${rangeText}</div>
 
-          <button class="heroLoc" id="homeLocBtn" title="Change location">
+          <button class="heroLoc" id="homeLocationBtn" title="Change location">
             <span>📍</span>
             <small>${placeLabel}</small>
             <span style="opacity:.9">▾</span>
@@ -337,67 +337,27 @@ async function renderHome(data){
 }
 
 function renderHourly(data){
-  el("#pageSubtitle").textContent = "Next 24 hours (3-hour steps).";
-
-  const placeLabel = `${state.place.name}${state.place.country ? ", " + state.place.country : ""}`;
-
-  const hours = (data.hourly || []).slice(0, 5);
-  const pills = hours.map((h, i) => {
-    const wind = Math.round(h.windKmh || 0);
-    const gust = Math.round(h.gustKmh || 0);
-    const rain = Math.round(h.precipProb || 0);
-    return `
-      <div class="hourTile ${i===0 ? "isNow" : ""}">
-        <div class="hourTop">
-          <div class="hourTime">${i===0 ? "Now" : fmtTime(h.time).replace(":00","h")}</div>
-          <div class="hourIcon" aria-hidden="true">${(h.category==="rain" ? "💧" : h.category==="wind" ? "💨" : h.category==="storm" ? "⛈️" : h.category==="fog" ? "🌫️" : h.category==="heat" ? "☀️" : "☁️")}</div>
-        </div>
-        <div class="hourTemp">${fmtTempC(h.tempC).replace("°C","°").replace("°F","°")}</div>
-        <div class="hourMeta">
-          <div>${wind} km/h</div>
-          <div class="muted">gusts ${gust} km/h</div>
-          <div class="hourRain"><span aria-hidden="true">💧</span> ${rain}%</div>
-        </div>
+  el("#pageSubtitle").textContent = "Next 24 hours, every 3 hours.";
+  const rows = (data.hourly || []).slice(0, 8).map(h => `
+    <div class="item">
+      <div>
+        <b>${fmtTime(h.time)}</b><br/>
+        <small>${h.label || h.category || "—"}</small>
       </div>
-    `;
-  }).join("");
-
-  const conf = (data.meta && data.meta.confidence) ? data.meta.confidence : "Medium";
-  const sources = (data.meta && Array.isArray(data.meta.sources)) ? data.meta.sources : [];
-  const sourcesText = sources.length ? sources.join(", ") : "3 sources";
-
-  el("#main").innerHTML = `
-    <div class="hourlyScreen">
-      <div class="screenTop">
-        <button class="locBtn" id="hourlyLocBtn" title="Change location">
-          <span aria-hidden="true">📍</span>
-          <span class="locText">${placeLabel}</span>
-          <span aria-hidden="true" class="chev">▾</span>
-        </button>
-        <div class="screenTitle">Hourly</div>
-      </div>
-
-      <div class="glassCard hourCard">
-        <div class="hourRow">
-          ${pills || "<div class='empty'>No data</div>"}
-        </div>
-
-        <div class="confidenceRow">
-          <div class="confLabel">Confidence:</div>
-          <div class="confDot confHigh" aria-hidden="true"></div><div>High</div>
-          <div class="confDot confMed" aria-hidden="true"></div><div>Medium</div>
-          <div class="confDot confLow" aria-hidden="true"></div><div>Low</div>
-          <div class="confSpacer"></div>
-          <a href="#" id="hourSourcesLink">Sources &gt;</a>
-        </div>
+      <div class="actions">
+        <div class="pill">${fmtTempC(h.tempC)}</div>
+        <div class="pill">${fmtWindKmh(h.windKmh)}</div>
       </div>
     </div>
+  `).join("");
+
+  el("#main").innerHTML = `
+    <div class="card">
+      <h2>Hourly</h2>
+      <div class="list">${rows || "<div class='item'><small>No data</small></div>"}</div>
+    </div>
   `;
-
-  el("#hourlyLocBtn")?.addEventListener("click", (e)=>{ e.preventDefault(); navTo("search"); });
-  el("#hourSourcesLink")?.addEventListener("click", (e)=>{ e.preventDefault(); navTo("settings"); });
 }
-
 
 function renderWeekly(data){
   el("#pageSubtitle").textContent = "The week, in one clean glance.";
@@ -423,39 +383,35 @@ function renderWeekly(data){
 }
 
 async function renderSearch(){
-  el("#pageSubtitle").textContent = "";
-
+  el("#pageSubtitle").textContent = "Search, save, repeat.";
   const favs = state.favorites.slice(0,5);
 
   const favRows = await Promise.all(favs.map(async (p, idx) => {
     try{
       const d = await fetchForecast(p.lat, p.lon);
-      const t = fmtTempC(d.current?.tempC).replace("°C","°").replace("°F","°");
-      const cat = (d.current?.category || "");
-      const icon = (cat==="rain" ? "💧" : cat==="wind" ? "💨" : cat==="storm" ? "⛈️" : cat==="fog" ? "🌫️" : cat==="heat" ? "☀️" : "☁️");
+      const t = fmtTempC(d.current?.tempC);
+      const c = (d.current?.label || d.current?.category || "—");
       return `
-        <div class="iosFavRow">
-          <button class="favMain" data-act="goFav" data-idx="${idx}">
-            <span class="star" aria-hidden="true">★</span>
-            <span class="favName">${p.name}${p.country ? ", " + p.country : ""}</span>
-          </button>
-          <div class="favRight">
-            <span class="favIcon" aria-hidden="true">${icon}</span>
-            <span class="favTemp">${t}</span>
-            <button class="kebab" data-act="delFav" data-idx="${idx}" aria-label="Remove favourite">•••</button>
+        <div class="item">
+          <div>
+            <b>${p.name}${p.country ? ", " + p.country : ""}</b><br/>
+            <small>${t} • ${c}</small>
+          </div>
+          <div class="actions">
+            <button class="iconBtn" data-act="goFav" data-idx="${idx}">Open</button>
+            <button class="iconBtn" data-act="delFav" data-idx="${idx}">✕</button>
           </div>
         </div>
       `;
-    }catch{
+    }catch(e){
       return `
-        <div class="iosFavRow">
-          <button class="favMain" data-act="goFav" data-idx="${idx}">
-            <span class="star" aria-hidden="true">★</span>
-            <span class="favName">${p.name}</span>
-          </button>
-          <div class="favRight">
-            <span class="favTemp">—</span>
-            <button class="kebab" data-act="delFav" data-idx="${idx}" aria-label="Remove favourite">•••</button>
+        <div class="item">
+          <div>
+            <b>${p.name}</b><br/>
+            <small>Couldn’t load right now</small>
+          </div>
+          <div class="actions">
+            <button class="iconBtn" data-act="delFav" data-idx="${idx}">✕</button>
           </div>
         </div>
       `;
@@ -463,86 +419,56 @@ async function renderSearch(){
   }));
 
   el("#main").innerHTML = `
-    <div class="iosScreen">
-      <div class="iosTitle">Search &amp; Favourites</div>
+    <div class="card">
+      <h2>Search</h2>
+      <input id="q" class="input" placeholder="Type a city, suburb, or landmark…" />
+      <div id="results" class="list" style="margin-top:10px"></div>
+    </div>
 
-      <div class="searchBarRow">
-        <div class="searchBar">
-          <span class="searchIcon" aria-hidden="true">🔎</span>
-          <input id="q" class="searchInput" placeholder="Search for a place" autocomplete="off" />
-        </div>
-        <button class="cancelBtn" id="cancelSearch" type="button">Cancel</button>
-      </div>
-
-      <div class="iosGroup">
-        <div class="iosGroupLabel">Saved places</div>
-        <div class="iosList">
-          <div class="iosFavList">
-            ${favRows.join("") || `<div class="iosEmpty">No saved places yet.</div>`}
-          </div>
-        </div>
-      </div>
-
-      <div class="iosGroup">
-        <div class="iosGroupLabel">Search results</div>
-        <div class="iosList">
-          <div id="results" class="iosResults"></div>
-        </div>
-      </div>
-
-      <div class="manageCard">
-        <div class="manageText">You’ve saved ${favs.length} places.${favs.length>=5 ? " Remove one to add a new favourite." : ""}</div>
-        <button class="manageBtn" type="button">Manage favourites</button>
-      </div>
+    <div class="card">
+      <h2>Favourites (max 5)</h2>
+      <div class="list">${favRows.join("") || "<div class='item'><small>No favourites yet.</small></div>"}</div>
+      <div class="sub" style="margin-top:8px">To delete one: tap ✕. Then add a new favourite.</div>
     </div>
   `;
 
-  el("#cancelSearch")?.addEventListener("click", ()=> navTo("home"));
-
-  // attach search
-  const input = el("#q");
-  const resultsEl = el("#results");
-
-  input.addEventListener("input", debounce(async ()=>{
-    const q = input.value.trim();
-    if (!q){
-      resultsEl.innerHTML = "";
+  el("#q").addEventListener("input", debounce(async (e)=>{
+    const q = e.target.value.trim();
+    if (q.length < 2){
+      el("#results").innerHTML = "";
       return;
     }
-    try{
-      const r = await fetch(`/api/suggest?q=${encodeURIComponent(q)}`).then(r=>r.json());
-      const list = (r.results || []).slice(0, 8);
-      resultsEl.innerHTML = list.map((p, i)=>`
-        <div class="iosResultRow">
-          <div class="resLeft">
-            <div class="resName">${p.name}${p.country ? ", " + p.country : ""}</div>
-            <div class="resSub">${p.admin ? p.admin : ""}</div>
-          </div>
-          <div class="resActions">
-            <button class="miniBtn" data-act="setPlace" data-idx="${i}">Set</button>
-            <button class="miniBtn" data-act="addFav" data-idx="${i}">★</button>
-          </div>
+    const res = await fetch(`/api/suggest?q=${encodeURIComponent(q)}`).then(r=>r.json());
+    const html = (res.results || []).slice(0,6).map((r,i)=>`
+      <div class="item">
+        <div>
+          <b>${r.name}</b><br/>
+          <small>${r.country || ""}</small>
         </div>
-      `).join("");
-      resultsEl.querySelectorAll("button[data-act]").forEach(btn=>{
-        btn.addEventListener("click", ()=>{
-          const act = btn.dataset.act;
-          const idx = Number(btn.dataset.idx);
-          const pick = list[idx];
-          if (!pick) return;
-          if (act==="setPlace"){
-            state.place = pick;
-            saveState();
-            toast("Updated location");
-            navTo("home");
-          } else if (act==="addFav"){
-            addFavorite(pick);
-          }
-        });
+        <div class="actions">
+          <button class="iconBtn" data-act="setPlace" data-i="${i}">Use</button>
+          <button class="iconBtn" data-act="addFav" data-i="${i}">+ Fav</button>
+        </div>
+      </div>
+    `).join("");
+    el("#results").innerHTML = html || "<div class='item'><small>No matches</small></div>";
+    // attach actions
+    el("#results").querySelectorAll("button").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const act = btn.dataset.act;
+        const i = Number(btn.dataset.i);
+        const pick = res.results[i];
+        if (!pick) return;
+        if (act==="setPlace"){
+          state.place = pick;
+          saveState();
+          toast("Updated location");
+          navTo("home");
+        } else if (act==="addFav"){
+          addFavorite(pick);
+        }
       });
-    }catch{
-      resultsEl.innerHTML = `<div class="iosEmpty">Couldn’t search right now.</div>`;
-    }
+    });
   }, 300));
 
   // attach fav actions
@@ -550,6 +476,7 @@ async function renderSearch(){
     btn.addEventListener("click", ()=>{
       const act = btn.dataset.act;
       const idx = Number(btn.dataset.idx);
+      if (!Number.isFinite(idx)) return;
       if (act==="delFav"){
         state.favorites.splice(idx,1);
         saveState();
@@ -567,7 +494,6 @@ async function renderSearch(){
   });
 }
 
-
 function addFavorite(p){
   // enforce max 5
   const exists = state.favorites.some(x => Math.abs(x.lat-p.lat) < 1e-6 && Math.abs(x.lon-p.lon) < 1e-6);
@@ -583,82 +509,38 @@ function addFavorite(p){
 }
 
 function renderSettings(){
-  el("#pageSubtitle").textContent = "";
-
-  const unitsLabel = state.units === "metric" ? "Celsius" : "Fahrenheit";
-  const sources = "Yr.no, SAWS, Open‑Meteo";
-
+  el("#pageSubtitle").textContent = "Keep it simple.";
   el("#main").innerHTML = `
-    <div class="iosScreen">
-      <div class="iosTitle">Settings</div>
-
-      <div class="iosGroup">
-        <div class="iosGroupLabel">Units</div>
-
-        <div class="iosList">
-          <button class="iosRow" id="toggleUnits" type="button">
-            <span class="iosLeft">Temperature</span>
-            <span class="iosRight">${unitsLabel}</span>
-            <span class="iosChevron" aria-hidden="true">›</span>
-          </button>
-
-          <div class="iosRow isStatic">
-            <span class="iosLeft">Wind speed</span>
-            <span class="iosRight">km/h</span>
-            <span class="iosChevron" aria-hidden="true">›</span>
+    <div class="card">
+      <h2>Units</h2>
+      <div class="list">
+        <div class="item">
+          <div>
+            <b>Temperature</b><br/>
+            <small>${state.units === "metric" ? "Celsius (°C)" : "Fahrenheit (°F)"}</small>
+          </div>
+          <div class="actions">
+            <button class="iconBtn" id="toggleUnits">Switch</button>
           </div>
         </div>
-      </div>
-
-      <div class="iosGroup">
-        <div class="iosGroupLabel">Forecast display</div>
-        <div class="iosList">
-          <div class="iosRow isStatic">
-            <span class="iosLeft">Show probability range</span>
-            <span class="iosRight"><span class="iosSwitch isOn" aria-hidden="true"></span></span>
-          </div>
-          <div class="iosRow isStatic">
-            <span class="iosLeft">Time format</span>
-            <span class="iosRight">24‑hour</span>
-            <span class="iosChevron" aria-hidden="true">›</span>
+        <div class="item">
+          <div>
+            <b>Data sources</b><br/>
+            <small>Open-Meteo + MET Norway + WeatherAPI (if key)</small>
           </div>
         </div>
-      </div>
-
-      <div class="iosGroup">
-        <div class="iosGroupLabel">Data sources</div>
-        <div class="iosList">
-          <div class="iosRow isStatic">
-            <span class="iosLeft">${sources}</span>
-            <span class="iosChevron" aria-hidden="true">›</span>
+        <div class="item">
+          <div>
+            <b>Clear favourites</b><br/>
+            <small>Start fresh.</small>
           </div>
-          <div class="iosFoot">Combined into a median forecast</div>
-        </div>
-      </div>
-
-      <div class="iosGroup">
-        <div class="iosGroupLabel">Favourites</div>
-        <div class="iosList">
-          <button class="iosRow danger" id="clearFavs" type="button">
-            <span class="iosLeft">Clear favourites</span>
-            <span class="iosChevron" aria-hidden="true">›</span>
-          </button>
-        </div>
-        <div class="iosFoot">You can save up to 5 favourite places.</div>
-      </div>
-
-      <div class="iosGroup">
-        <div class="iosList">
-          <div class="iosRow isStatic">
-            <span class="iosLeft">About</span>
-            <span class="iosRight">Version 1.1</span>
-            <span class="iosChevron" aria-hidden="true">›</span>
+          <div class="actions">
+            <button class="iconBtn" id="clearFavs">Clear</button>
           </div>
         </div>
       </div>
     </div>
   `;
-
   el("#toggleUnits").addEventListener("click", ()=>{
     state.units = state.units === "metric" ? "imperial" : "metric";
     state.cache.clear();
@@ -666,15 +548,13 @@ function renderSettings(){
     toast("Units updated");
     navTo("home");
   });
-
   el("#clearFavs").addEventListener("click", ()=>{
     state.favorites = [];
     saveState();
     toast("Favourites cleared");
-    render();
+    navTo("search");
   });
 }
-
 
 function debounce(fn, ms){
   let t;

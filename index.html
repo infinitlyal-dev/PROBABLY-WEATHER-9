@@ -7,43 +7,83 @@
   <link rel="stylesheet" href="assets/app.css"/>
 </head>
 <body>
-  <!-- Background: blurred cover + foreground contain (prevents the "zoomed-in" look) -->
+  <!-- Full-screen background -->
   <div id="bg" aria-hidden="true">
     <div id="bgBlur"></div>
-    <img id="bgImg" alt="" />
+    <img id="bgImg" alt="" loading="lazy"/>
     <div id="bgVignette"></div>
   </div>
 
-  <div class="app">
-    <div class="phone">
-
-      <div class="header headerStack">
-        <div>
-          <div class="brand">Probably Weather</div>
-          <div class="tagline">Your best guess, without the drama.</div>
+  <div class="app-container">
+    <!-- Main content overlay -->
+    <main class="main-content">
+      <header class="header">
+        <div class="brand-section">
+          <h1 class="brand">Probably Weather</h1>
+          <p class="tagline">Your best guess, without the drama.</p>
         </div>
-
         <button id="settingsBtn" class="iconBtn" aria-label="Settings">⚙️</button>
+      </header>
+
+      <section class="hero-content">
+        <div id="confidenceBadge" class="confidence-badge">PROBABLY • HIGH CONFIDENCE</div>
+        <h2 id="headline" class="headline">This is hot.</h2>
+        <div id="temperature" class="temperature">35–38°</div>
+        <p id="supportingLine" class="supporting-line">Frying an egg is a real option</p>
+      </section>
+    </main>
+
+    <!-- Right-side vertical rail -->
+    <aside id="sideRail" class="side-rail">
+      <div class="rail-item extreme">
+        <span class="rail-icon">☀️</span>
+        <div>
+          <div class="rail-label">Today's extreme: Heat</div>
+          <div id="extremeValue" class="rail-value">35–38°</div>
+        </div>
       </div>
-
-      <!-- Keep these for JS compatibility, but visually hidden -->
-      <div id="pageTitle" class="srOnly">—</div>
-      <div id="pageSubtitle" class="srOnly">—</div>
-
-      <div id="main"></div>
-
-      <div class="nav">
-        <button id="navHome" data-nav="home"><span class="navIcon">🏠</span><span class="navLabel">Home</span></button>
-        <button id="navHourly" data-nav="hourly"><span class="navIcon">🕒</span><span class="navLabel">Hourly</span></button>
-        <button id="navWeekly" data-nav="weekly"><span class="navIcon">📅</span><span class="navLabel">Week</span></button>
-        <button id="navSearch" data-nav="search"><span class="navIcon">🔎</span><span class="navLabel">Search</span></button>
-        <button id="navSettings" data-nav="settings"><span class="navIcon">⚙️</span><span class="navLabel">Settings</span></button>
+      <div class="rail-item">
+        <span class="rail-icon">🌧️</span>
+        <div>
+          <div class="rail-label">Rain:</div>
+          <div id="rainValue" class="rail-value">Probably none today</div>
+        </div>
       </div>
+      <div class="rail-item">
+        <span class="rail-icon">☀️</span>
+        <div>
+          <div class="rail-label">UV</div>
+          <div id="uvValue" class="rail-value">Very high (10)</div>
+        </div>
+      </div>
+      <div class="rail-item confidence">
+        <span class="rail-icon">↺</span>
+        <div>
+          <div class="rail-label">Confidence:</div>
+          <div id="confidenceValue" class="rail-value">High:<br>Based on 3 forecasts →</div>
+        </div>
+      </div>
+    </aside>
 
-    </div>
+    <!-- Bottom navigation -->
+    <nav class="nav">
+      <button id="navHome" class="active" data-nav="home"><span class="navIcon">🏠</span><span class="navLabel">Home</span></button>
+      <button id="navHourly" data-nav="hourly"><span class="navIcon">🕒</span><span class="navLabel">Hourly</span></button>
+      <button id="navWeekly" data-nav="weekly"><span class="navIcon">📅</span><span class="navLabel">Week</span></button>
+      <button id="navSearch" data-nav="search"><span class="navIcon">🔎</span><span class="navLabel">Search</span></button>
+      <button id="navSettings" data-nav="settings"><span class="navIcon">⚙️</span><span class="navLabel">Settings</span></button>
+    </nav>
   </div>
 
   <div id="toast" class="toast">Saved</div>
+
+  <!-- Temporary test: remove this block once app.js is updated -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // CHANGE THIS to one of your actual image filenames
+      document.getElementById('bgImg').src = 'assets/images/bg/heat/day.jpg';
+  </script>
+
   <script src="assets/app.js"></script>
 </body>
 </html>
