@@ -1,124 +1,140 @@
-/* =========================
-   RESET & VARIABLES
-   ========================= */
 
-   :root {
-    --card: rgba(255, 255, 255, 0.82);
-    --card2: rgba(255, 255, 255, 0.72);
-    --text: #ffffff;
-    --muted: rgba(255,255,255,0.65);
-    --stroke: rgba(255,255,255,0.15);
-    --shadow: 0 10px 30px rgba(0,0,0,0.25);
-  }
-  
-  * {
-    box-sizing: border-box;
-  }
-  
-  html, body {
-    width: 100%;
-    height: 100%;
-    margin: 0;
-  }
-  
-  body {
-    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-    color: var(--text);
-    background: #000;
-    overflow-x: hidden;
-  }
-  
-  
-  /* =========================
-     TRUE FULLSCREEN BACKGROUND
-     ========================= */
-  
-  #bg {
-    position: fixed;
-    inset: 0;
-    z-index: -2;
-  }
-  
-  #bgImg {
-    position: fixed;
-    inset: 0;
-    width: 100vw;
-    height: 100vh;
-    object-fit: cover;
-  
-    /* CRISP IMAGE — NO BURN */
-    filter: none;
-    transform: none;
-  }
-  
-  /* Optional subtle overlay for legibility */
-  #bg::after {
-    content: "";
-    position: fixed;
-    inset: 0;
-    background: linear-gradient(
-      to bottom,
-      rgba(0,0,0,0.25),
-      rgba(0,0,0,0.45)
-    );
-    z-index: -1;
-  }
-  
-  
-  /* =========================
-     APP LAYOUT (UNLOCKED)
-     ========================= */
-  
-  .app {
-    min-height: 100vh;
-    width: 100%;
-    display: flex;
-    justify-content: center;
-  }
-  
-  /* This keeps your existing layout logic intact */
-  .phone {
-    width: 100%;
-    max-width: 1200px; /* desktop breathing room */
-    padding: 24px;
-  }
-  
-  
-  /* =========================
-     CARDS / PANELS
-     ========================= */
-  
-  .card {
-    background: var(--card);
-    color: #000;
-    border-radius: 18px;
-    box-shadow: var(--shadow);
-    backdrop-filter: blur(10px);
-  }
-  
-  
-  /* =========================
-     NAV BAR (UNCHANGED BEHAVIOR)
-     ========================= */
-  
-  .nav {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    padding: 12px 16px;
-    background: rgba(0,0,0,0.45);
-    backdrop-filter: blur(14px);
-  }
-  
-  
-  /* =========================
-     RESPONSIVE SAFETY ONLY
-     ========================= */
-  
-  @media (max-width: 768px) {
-    .phone {
-      padding: 18px;
-    }
-  }
-  
+/* =========================
+   GLOBAL RESET
+========================= */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #000;
+  overflow: hidden;
+}
+
+/* =========================
+   APP ROOT (PHONE FRAME)
+========================= */
+#app {
+  position: relative;
+  width: 100%;
+  max-width: 430px;
+  height: 100vh;
+  margin: 0 auto;
+  overflow: hidden;
+  background: #000;
+}
+
+/* =========================
+   BACKGROUND IMAGE
+========================= */
+.app-background {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+
+  /* IMPORTANT: remove washed-out look */
+  filter: none;
+  transform: translateZ(0);
+}
+
+/* =========================
+   CONTENT WRAPPER
+========================= */
+.app-content {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* =========================
+   SCROLLABLE MAIN AREA
+========================= */
+.main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  padding-bottom: 96px; /* space for bottom nav */
+  color: #fff;
+}
+
+/* Prevent weird scroll bugs */
+.main::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+/* =========================
+   GLASS CARD BASE
+========================= */
+.card {
+  background: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 20px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+/* =========================
+   BOTTOM NAV
+========================= */
+.bottom-nav {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 72px;
+
+  background: rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+}
+
+/* =========================
+   NAV ITEMS
+========================= */
+.bottom-nav button {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.bottom-nav button.active {
+  color: #fff;
+}
+
+/* =========================
+   TEXT SAFETY
+========================= */
+h1, h2, h3, h4, p {
+  margin: 0 0 8px 0;
+}
+
+small {
+  opacity: 0.8;
+}
