@@ -83,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
       const data = await res.json();
-      return data.display_name.split(',')[0] + ', ' + data.address.state; // e.g., 'Strand, WC'
+      return data.display_name.split(',')[0] + ', ' + (data.address.state || data.address.country_code.toUpperCase());
     } catch (e) {
       console.error('Reverse geocode error:', e);
       return null;
@@ -91,9 +91,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function fetchWeather(lat, lon) {
-    const weatherApiKey = 'a98886bfef6c4dcd8bf111514251512'; // Your key
+    const weatherApiKey = 'a98886bfef6c4dcd8bf111514251512';
     const sources = [
-      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,precipitation,uv_index,wind_speed_10m`,
+      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,precipitation_probability,uv_index,wind_speed_10m`,
       `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${lat}&lon=${lon}`,
       `https://api.weatherapi.com/v1/current.json?key=${weatherApiKey}&q=${lat},${lon}`,
       `http://www.7timer.info/bin/astro.php?lon=${lon}&lat=${lat}&ac=0&unit=metric&output=json&tzshift=0`,
@@ -101,10 +101,11 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
 
     try {
-      const responses = await Promise.all(sources.map(url => fetch(url, {mode: 'cors'}).then(res => res.json()).catch(() => null)));
+      const responses = await Promise.all(sources.map(url => fetch(url).then(res => res.json()).catch(e => (console.error('API error for ' + url, e), null))));
       const validResponses = responses.filter(r => r !== null);
+      console.log('Valid responses:', validResponses.length);
 
-      if (validResponses.length < 3) throw new Error('Too few valid responses - check CORS or API status');
+      if (validResponses.length < 3) throw new Error('Too few valid responses');
 
       // Parse temps
       const temps = validResponses.map((r, i) => {
@@ -114,17 +115,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (i === 3) return r.dataseries[0].temp2m;
         if (i === 4) return r.temperature;
       }).filter(t => t !== undefined && !isNaN(t));
-
-      const medianTemp = temps.sort((a,b) => a-b)[Math.floor(temps.length/2)] || 20; // Fallback
+      const medianTemp = temps.sort((a,b) => a-b)[Math.floor(temps.length/2)] || 20;
       const tempRange = `${Math.floor(medianTemp - 2)}–${Math.ceil(medianTemp + 2)}°`;
 
-      // Parse rain (probability or amount)
+      // Parse rain probability (0-100%)
       const rainProbs = validResponses.map((r, i) => {
-        if (i === 0) return r.hourly.precipitation[0];
-        if (i === 1) return r.timeseries[0].data.instant.details.precipitation_amount;
-        if (i === 2) return r.current.precip_mm;
-        if (i === 3) return r.dataseries[0].prec_amount;
-        if (i === 4) return r.precipitation;
+        if (i === 0) return r.hourly.precipitation_probability[0];
+        if (i === 1) return r.timeseries[0].data.instant.details.probability_of_precipitation;
+        if (i === 2) return r.current.chance_of_rain;
+        if (i === 3) return r.dataseries[0].prec_amount * 10; // Approximate
+        if (i === 4) return r.precipitation ? 50 : 0; // Binary approx
       }).filter(p => p !== undefined && !isNaN(p));
       const medianRain = rainProbs.sort((a,b) => a-b)[Math.floor(rainProbs.length/2)] || 0;
 
@@ -133,21 +133,21 @@ document.addEventListener('DOMContentLoaded', () => {
         if (i === 0) return r.hourly.uv_index[0];
         if (i === 2) return r.current.uv;
         if (i === 3) return r.dataseries[0].uv;
-        // Others may not have UV - fallback 0
+        // Others fallback 0
       }).filter(u => u !== undefined && !isNaN(u));
       const medianUV = uvIndexes.sort((a,b) => a-b)[Math.floor(uvIndexes.length/2)] || 0;
 
-      // Parse wind
+      // Parse wind (km/h)
       const windSpeeds = validResponses.map((r, i) => {
         if (i === 0) return r.hourly.wind_speed_10m[0];
-        if (i === 1) return r.timeseries[0].data.instant.details.wind_speed;
+        if (i === 1) return r.timeseries[0].data.instant.details.wind_speed * 3.6; // m/s to km/h
         if (i === 2) return r.current.wind_kph;
         if (i === 3) return r.dataseries[0].wind10m.speed;
         if (i === 4) return r.wind_speed;
       }).filter(w => w !== undefined && !isNaN(w));
       const medianWind = windSpeeds.sort((a,b) => a-b)[Math.floor(windSpeeds.length/2)] || 0;
 
-      // Condition
+      // Condition priority
       let condition = 'clear';
       if (medianRain > 50) condition = 'storm';
       else if (medianRain > 10) condition = 'rain';
@@ -161,7 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
       let confLevel = tempVariance < 5 ? 'High' : tempVariance < 10 ? 'Medium' : 'Low';
       confVal = `${confLevel}<br>Based on ${validResponses.length} forecasts →`;
 
-      // Update UI
+      // Update
       body.classList.add(`weather-${condition}`);
       bgImg.src = `assets/images/bg/${condition}/${timeOfDay}.jpg` || 'assets/images/bg/clear/day.jpg';
       headline.innerText = `This is ${condition}.`;
