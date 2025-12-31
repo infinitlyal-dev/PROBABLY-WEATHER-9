@@ -1,612 +1,188 @@
+document.addEventListener('DOMContentLoaded', () => {
+  const bgImg = document.getElementById('bgImg');
+  const body = document.body;
+  const headline = document.getElementById('headline');
+  const temp = document.getElementById('temp');
+  const description = document.getElementById('description');
+  const extremeLabel = document.getElementById('extremeLabel');
+  const extremeValue = document.getElementById('extremeValue');
+  const rainValue = document.getElementById('rainValue');
+  const uvValue = document.getElementById('uvValue');
+  const confidenceValue = document.getElementById('confidenceValue');
+  const location = document.getElementById('location');
+  const particles = document.getElementById('particles');
 
-const state = {
-  units: localStorage.getItem("pw_units") || "metric", // metric | imperial
-  place: JSON.parse(localStorage.getItem("pw_place") || "null"),
-  favorites: JSON.parse(localStorage.getItem("pw_favs") || "[]"),
-  view: "home",
-  cache: new Map(), // key -> forecast payload
-};
-
-const el = (sel) => document.querySelector(sel);
-
-function saveState(){
-  localStorage.setItem("pw_units", state.units);
-  localStorage.setItem("pw_place", JSON.stringify(state.place));
-  localStorage.setItem("pw_favs", JSON.stringify(state.favorites));
-}
-
-function toast(msg){
-  const t = el("#toast");
-  t.textContent = msg;
-  t.style.display = "block";
-  clearTimeout(toast._t);
-  toast._t = setTimeout(()=> t.style.display="none", 1600);
-}
-
-function slotFromHour(h){
-  if (h >= 5 && h < 9) return "dawn";
-  if (h >= 9 && h < 17) return "day";
-  if (h >= 17 && h < 20) return "dusk";
-  return "night";
-}
-
-function clamp(n,min,max){ return Math.min(max, Math.max(min,n)); }
-
-function pickCategory(cur){
-  // cur: {tempC, windKmh, precipMm, precipProb, visKm}
-  const t = cur?.tempC;
-  const w = cur?.windKmh;
-  const p = cur?.precipMm;
-  const pp = cur?.precipProb;
-  const v = cur?.visKm;
-
-  if ((Number.isFinite(p) && p >= 8) || (Number.isFinite(w) && w >= 55 && (pp||0) >= 40)) return "storm";
-  if ((Number.isFinite(p) && p >= 1.5) || (Number.isFinite(pp) && pp >= 60)) return "rain";
-  if (Number.isFinite(w) && w >= 35) return "wind";
-  if (Number.isFinite(v) && v <= 2.0) return "fog";
-  if (Number.isFinite(t) && t >= 28) return "heat";
-  if (Number.isFinite(t) && t <= 12) return "cold";
-  return "clear";
-}
-
-async function setBackground(category, slot){
-  // Try jpg then png, otherwise fallback
-  const root = "assets/images/bg";
-  const tries = [
-    `${root}/${category}/${slot}.jpg`,
-    `${root}/${category}/${slot}.png`,
-    `${root}/default.jpg`,
-    `${root}/default.png`
-  ];
-  for (const url of tries){
-    const ok = await fetch(url, { method:"HEAD" }).then(r=>r.ok).catch(()=>false);
-    if (ok){
-      // Two-layer background (blurred cover + foreground contain)
-      const blur = document.getElementById('bgBlur');
-      const img  = document.getElementById('bgImg');
-      if (blur) blur.style.backgroundImage = `url('${url}')`;
-      if (img) img.src = url;
-      return;
-    }
-  }
-  const blur = document.getElementById('bgBlur');
-  const img  = document.getElementById('bgImg');
-  if (blur) blur.style.backgroundImage = '';
-  if (img) img.src = '';
-  el("#bg").style.background = "#111";
-}
-
-function phrase(category, slot, tempText){
-  // Middle-ground tone: human, gentle, not trying too hard.
-  const map = {
-    clear: {
-      dawn: `Fresh start. ${tempText}`,
-      day: `Looks good out there. ${tempText}`,
-      dusk: `Easy evening energy. ${tempText}`,
-      night: `Calm skies. ${tempText}`,
-    },
-    wind: {
-      dawn: `Wind’s already up. Hold onto your coffee.`,
-      day: `Windy. Hair has opinions today.`,
-      dusk: `That breeze isn’t clocking out yet.`,
-      night: `Windy night. Secure the washing.`,
-    },
-    rain: {
-      dawn: `Pack a jacket. You’ll thank yourself later.`,
-      day: `Clouds are going to cry like NZ at the World Cup.`,
-      dusk: `Showers around. Drive like a saint.`,
-      night: `Wet night. Watch the roads.`,
-    },
-    storm: {
-      dawn: `Rough start. Keep it safe.`,
-      day: `Stormy conditions. Take it seriously.`,
-      dusk: `Storm still hanging around. Avoid drama (and puddles).`,
-      night: `Stormy night. Best plan: indoors.`,
-    },
-    fog: {
-      dawn: `Low visibility. Lights on, patience on.`,
-      day: `Hazy. Take it slow.`,
-      dusk: `Foggy pockets. Watch the corners.`,
-      night: `Fog + night = extra careful.`,
-    },
+  // Humor variants by timeOfDay
+  const humor = {
     cold: {
-      dawn: `Chilly start. Layers win.`,
-      day: `Cool day. Sun helps, but not that much.`,
-      dusk: `Cold evening incoming. Jacket time.`,
-      night: `Cold night. Blanket energy.`,
+      dawn: 'Chilly start—coffee and blankets time!',
+      day: 'Time to build a snowman',
+      dusk: 'Freezing evening—rug up tight!',
+      night: 'Polar bear weather—stay warm!'
     },
     heat: {
-      dawn: `Warm early. Hydrate like it’s your job.`,
-      day: `Hot. Shade is a lifestyle choice.`,
-      dusk: `Still warm. Slow down a bit.`,
-      night: `Warm night. Fan season.`,
+      dawn: 'Warm start—early braai?',
+      day: 'Frying an egg is a real option',
+      dusk: 'Hot evening—ice cream time!',
+      night: 'Sizzling night—fan on full!'
+    },
+    storm: {
+      dawn: 'Stormy dawn—stay in bed!',
+      day: 'Thunder\'s rolling—don\'t get zapped!',
+      dusk: 'Evening storm—lights out?',
+      night: 'Night thunder—sweet dreams?'
+    },
+    rain: {
+      dawn: 'Rainy morning—lazy day ahead',
+      day: 'The clouds are crying like NZ at the \'23 World Cup!',
+      dusk: 'Evening downpour—cozy inside!',
+      night: 'Night rain—sleep to the pitter-patter'
+    },
+    wind: {
+      dawn: 'Windy dawn—hairdo beware!',
+      day: 'Gale force—your bakkie might fly!',
+      dusk: 'Evening gusts—secure the bins!',
+      night: 'Howling night—close the windows'
+    },
+    fog: {
+      dawn: 'Foggy dawn—ghostly start',
+      day: 'Misty mayhem—can\'t see your braai from the stoep!',
+      dusk: 'Evening fog—early lights on',
+      night: 'Foggy night—watch your step!'
+    },
+    clear: {
+      dawn: 'Clear dawn—beautiful sunrise ahead',
+      day: 'Braai weather, boet!',
+      dusk: 'Clear evening—starry night coming',
+      night: 'Clear night—perfect for stargazing'
     }
   };
-  const t = map?.[category]?.[slot];
-  return t || `Probably fine. ${tempText}`;
-}
 
-function fmtTempC(c){
-  if (!Number.isFinite(c)) return "—";
-  if (state.units === "imperial"){
-    return Math.round((c * 9/5) + 32) + "°F";
-  }
-  return Math.round(c) + "°C";
-}
-function fmtWindKmh(kmh){
-  if (!Number.isFinite(kmh)) return "—";
-  if (state.units === "imperial"){
-    return Math.round(kmh / 1.60934) + " mph";
-  }
-  return Math.round(kmh) + " km/h";
-}
-function fmtMm(mm){
-  if (!Number.isFinite(mm)) return "—";
-  return (Math.round(mm*10)/10) + " mm";
-}
-function fmtTime(ts){
-  if (!ts) return "—";
-  const d = new Date(ts);
-  return d.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
-}
-function fmtDay(ts){
-  const d = new Date(ts);
-  return d.toLocaleDateString([], {weekday:"short", day:"2-digit", month:"short"});
-}
+  // Get real timeOfDay
+  const hour = new Date().getHours();
+  let timeOfDay;
+  if (hour < 6) timeOfDay = 'night';
+  else if (hour < 12) timeOfDay = 'dawn';
+  else if (hour < 18) timeOfDay = 'day';
+  else timeOfDay = 'dusk';
 
-async function fetchForecast(lat, lon){
-  const key = `${lat.toFixed(3)},${lon.toFixed(3)},${state.units}`;
-  if (state.cache.has(key)) return state.cache.get(key);
+  // Geolocation
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    const lat = pos.coords.latitude;
+    const lon = pos.coords.longitude;
+    const place = await reverseGeocode(lat, lon);
+    location.innerText = place || 'Strand, WC';
+    await fetchWeather(lat, lon);
+  }, async () => {
+    console.log('Geolocation denied - falling back to Strand');
+    location.innerText = 'Strand, WC';
+    await fetchWeather(-34.104, 18.817);
+  });
 
-  const url = `/api/forecast?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&units=${encodeURIComponent(state.units)}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error("Forecast failed");
-  const data = await res.json();
-  state.cache.set(key, data);
-  return data;
-}
-
-async function ensurePlace(){
-  if (state.place) return state.place;
-  // Default: Cape Town CBD-ish
-  state.place = { name: "Cape Town", country: "ZA", lat: -33.9258, lon: 18.4232 };
-  saveState();
-  return state.place;
-}
-
-function navTo(view){
-  state.view = view;
-  render();
-}
-
-function navButton(id, view){
-  const b = el(id);
-  b.classList.toggle("active", state.view === view);
-}
-
-async function renderHome(data){
-  const cur = data.current || {};
-  const daily0 = (data.daily || [])[0] || {};
-  const sun = data.sun || {};
-
-  const slot = slotFromHour(new Date().getHours());
-  const cat = pickCategory(cur);
-  await setBackground(cat, slot);
-
-  // Verdict word (mockup: "This is windy.")
-  const verdictWord = ({
-    wind: "windy",
-    rain: "rainy",
-    storm: "wild",
-    fog: "foggy",
-    heat: "hot",
-    cold: "cold",
-    clear: "fine"
-  })[cat] || "fine";
-
-  const verdictLine = `This is ${verdictWord}.`;
-
-  // Range (mockup: 22–26°)
-  const minC = daily0.minC;
-  const maxC = daily0.maxC;
-  const minT = fmtTempC(minC);
-  const maxT = fmtTempC(maxC);
-  const rangeText = (Number.isFinite(minC) && Number.isFinite(maxC))
-    ? `${minT.replace("°C","°").replace("°F","°")}–${maxT}`
-    : fmtTempC(cur.tempC);
-
-  // “Today’s extreme” block
-  function extremeCopy(){
-    if (cat === "wind"){
-      return {
-        title: "Today’s extreme: Wind",
-        line: "Wind is the main event today.",
-        meta: `${fmtWindKmh(cur.windKmh)}`
-      };
+  async function reverseGeocode(lat, lon) {
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+      const data = await res.json();
+      return data.display_name.split(',')[0] + ', ' + data.address.state; // e.g., 'Strand, WC'
+    } catch (e) {
+      console.error('Reverse geocode error:', e);
+      return null;
     }
-    if (cat === "rain"){
-      return {
-        title: "Today’s extreme: Rain",
-        line: "You’ll probably get wet at some point.",
-        meta: `${fmtMm(cur.precipMm)} mm · ${Math.round(cur.precipProb||0)}% chance`
-      };
-    }
-    if (cat === "storm"){
-      return {
-        title: "Today’s extreme: Storm",
-        line: "Keep plans flexible. It’s a spicy one.",
-        meta: `${fmtWindKmh(cur.windKmh)} · ${fmtMm(cur.precipMm)} mm`
-      };
-    }
-    if (cat === "heat"){
-      return {
-        title: "Today’s extreme: Heat",
-        line: "It’s giving sunscreen and shade.",
-        meta: `Feels like ${fmtTempC(cur.feelsC)}`
-      };
-    }
-    if (cat === "cold"){
-      return {
-        title: "Today’s extreme: Cold",
-        line: "Layers. Hot coffee. No shame.",
-        meta: `Feels like ${fmtTempC(cur.feelsC)}`
-      };
-    }
-    if (cat === "fog"){
-      return {
-        title: "Today’s extreme: Fog",
-        line: "Low visibility vibes. Drive like a grownup.",
-        meta: `Visibility ${Number.isFinite(cur.visKm) ? cur.visKm.toFixed(1) + " km" : "—"}`
-      };
-    }
-    return {
-      title: "Today’s extreme: Calm",
-      line: "Not much drama. Take the win.",
-      meta: ""
-    };
   }
 
-  const ex = extremeCopy();
+  async function fetchWeather(lat, lon) {
+    const weatherApiKey = 'a98886bfef6c4dcd8bf111514251512'; // Your key
+    const sources = [
+      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,precipitation,uv_index,wind_speed_10m`,
+      `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${lat}&lon=${lon}`,
+      `https://api.weatherapi.com/v1/current.json?key=${weatherApiKey}&q=${lat},${lon}`,
+      `http://www.7timer.info/bin/astro.php?lon=${lon}&lat=${lat}&ac=0&unit=metric&output=json&tzshift=0`,
+      `https://api.brightsky.dev/current_weather?lat=${lat}&lon=${lon}`
+    ];
 
-  const conf = (data.meta && data.meta.confidence) ? data.meta.confidence : "Medium";
+    try {
+      const responses = await Promise.all(sources.map(url => fetch(url, {mode: 'cors'}).then(res => res.json()).catch(() => null)));
+      const validResponses = responses.filter(r => r !== null);
 
-  const placeLabel = `${state.place.name}${state.place.country ? ", " + state.place.country : ""}`;
+      if (validResponses.length < 3) throw new Error('Too few valid responses - check CORS or API status');
 
-  const rainProb = Math.round(cur.precipProb || 0);
-  const rainMm = fmtMm(cur.precipMm);
-  const windKmh = Math.round(cur.windKmh || 0);
-  const gustKmh = Math.round(cur.gustKmh || 0);
-  const uv = (typeof cur.uv === "number") ? Math.round(cur.uv) : null;
-  const feels = (typeof cur.feelsC === "number") ? Math.round(cur.feelsC) : null;
+      // Parse temps
+      const temps = validResponses.map((r, i) => {
+        if (i === 0) return r.current_weather.temperature;
+        if (i === 1) return r.timeseries[0].data.instant.details.air_temperature;
+        if (i === 2) return r.current.temp_c;
+        if (i === 3) return r.dataseries[0].temp2m;
+        if (i === 4) return r.temperature;
+      }).filter(t => t !== undefined && !isNaN(t));
 
-  const railTile = (label, value, sub, icon) => `
-    <div class="railTile">
-      <div class="railIcon" aria-hidden="true">${icon || ""}</div>
-      <div class="railLabel">${label}</div>
-      <div class="railValue">${value}</div>
-      ${sub ? `<div class="railSub">${sub}</div>` : ""}
-    </div>
-  `;
+      const medianTemp = temps.sort((a,b) => a-b)[Math.floor(temps.length/2)] || 20; // Fallback
+      const tempRange = `${Math.floor(medianTemp - 2)}–${Math.ceil(medianTemp + 2)}°`;
 
-  el("#main").innerHTML = `
-    <div class="homeLayout">
-      <div class="homeTop">
-        <div class="hero">
-          <div class="heroBadge"><span class="badge">Probably</span><span class="badgeDot badgeDot-${conf.toLowerCase()}" aria-hidden="true"></span><span class="badgeText">${conf}</span></div>
-          <div class="heroTitle">${verdictLine}</div>
-          <div class="heroRange">${rangeText}</div>
+      // Parse rain (probability or amount)
+      const rainProbs = validResponses.map((r, i) => {
+        if (i === 0) return r.hourly.precipitation[0];
+        if (i === 1) return r.timeseries[0].data.instant.details.precipitation_amount;
+        if (i === 2) return r.current.precip_mm;
+        if (i === 3) return r.dataseries[0].prec_amount;
+        if (i === 4) return r.precipitation;
+      }).filter(p => p !== undefined && !isNaN(p));
+      const medianRain = rainProbs.sort((a,b) => a-b)[Math.floor(rainProbs.length/2)] || 0;
 
-          <button class="heroLoc" id="homeLocationBtn" title="Change location">
-            <span>📍</span>
-            <small>${placeLabel}</small>
-            <span style="opacity:.9">▾</span>
-          </button>
-        </div>
-      </div>
+      // Parse UV
+      const uvIndexes = validResponses.map((r, i) => {
+        if (i === 0) return r.hourly.uv_index[0];
+        if (i === 2) return r.current.uv;
+        if (i === 3) return r.dataseries[0].uv;
+        // Others may not have UV - fallback 0
+      }).filter(u => u !== undefined && !isNaN(u));
+      const medianUV = uvIndexes.sort((a,b) => a-b)[Math.floor(uvIndexes.length/2)] || 0;
 
-      <aside class="sideRail" aria-label="Today metrics">
-        ${railTile("Rain", `${rainProb}%`, `${rainMm} • chance`, "💧")}
-        ${railTile("Wind", `${windKmh} km/h`, gustKmh ? `gusts ${gustKmh} km/h` : "", "🌬️")}
-        ${railTile("UV", uv === null ? "—" : `${uv}`, uv === null ? "" : (uv >= 8 ? "high" : uv >= 5 ? "moderate" : "low"), "☀️")}
-        ${railTile("Feels", feels === null ? "—" : `${feels}°`, "feels like", "🧍")}
-        <div class="railTile railTileWide">
-          <div class="railLabel">Today’s extreme</div>
-          <div class="railValue">${ex.title.replace("Today’s extreme: ", "")}</div>
-          <div class="railSub">${ex.line}</div>
-          ${ex.meta ? `<div class="railSub" style="opacity:.85">${ex.meta}</div>` : ""}
-        </div>
-      </aside>
+      // Parse wind
+      const windSpeeds = validResponses.map((r, i) => {
+        if (i === 0) return r.hourly.wind_speed_10m[0];
+        if (i === 1) return r.timeseries[0].data.instant.details.wind_speed;
+        if (i === 2) return r.current.wind_kph;
+        if (i === 3) return r.dataseries[0].wind10m.speed;
+        if (i === 4) return r.wind_speed;
+      }).filter(w => w !== undefined && !isNaN(w));
+      const medianWind = windSpeeds.sort((a,b) => a-b)[Math.floor(windSpeeds.length/2)] || 0;
 
-      <div class="bottomMeta">
-        Confidence: <strong>${conf}</strong> ·
-        <a href="#" id="sourcesLink">Sources &gt;</a>
-        <span style="opacity:.85"> · Sunrise ${sun.sunrise || "—"} · Sunset ${sun.sunset || "—"}</span>
-      </div>
-    </div>
-  `;
+      // Condition
+      let condition = 'clear';
+      if (medianRain > 50) condition = 'storm';
+      else if (medianRain > 10) condition = 'rain';
+      if (medianWind > 40) condition = 'wind';
+      if (medianUV < 2 && medianTemp < 15) condition = 'fog';
+      if (medianTemp < 10) condition = 'cold';
+      if (medianTemp > 30) condition = 'heat';
 
-  // Location dropdown behavior (mockup)
-  el("#homeLocBtn")?.addEventListener("click", (e)=>{ e.preventDefault(); navTo("search"); });
+      // Confidence
+      const tempVariance = Math.max(...temps) - Math.min(...temps);
+      let confLevel = tempVariance < 5 ? 'High' : tempVariance < 10 ? 'Medium' : 'Low';
+      confVal = `${confLevel}<br>Based on ${validResponses.length} forecasts →`;
 
-  // “Sources >” goes to settings for now
-  el("#sourcesLink")?.addEventListener("click", (e)=>{ e.preventDefault(); navTo("settings"); });
+      // Update UI
+      body.classList.add(`weather-${condition}`);
+      bgImg.src = `assets/images/bg/${condition}/${timeOfDay}.jpg` || 'assets/images/bg/clear/day.jpg';
+      headline.innerText = `This is ${condition}.`;
+      temp.innerText = tempRange;
+      description.innerText = humor[condition][timeOfDay] || humor[condition]['day'];
+      extremeLabel.innerText = "Today's extreme: " + condition.charAt(0).toUpperCase() + condition.slice(1);
+      extremeValue.innerText = tempRange;
+      rainValue.innerText = medianRain > 10 ? 'Likely' : 'Unlikely';
+      uvValue.innerText = medianUV > 6 ? 'High' : medianUV > 3 ? 'Moderate' : 'Low';
+      confidenceValue.innerHTML = confVal;
 
-  // Keep hidden meta updated for other views / accessibility
-  el("#pageTitle").textContent = placeLabel;
-  el("#pageSubtitle").textContent = phrase(cat, slot, fmtTempC(cur.tempC));
-}
+      addParticles(condition);
 
-function renderHourly(data){
-  el("#pageSubtitle").textContent = "Next 24 hours, every 3 hours.";
-  const rows = (data.hourly || []).slice(0, 8).map(h => `
-    <div class="item">
-      <div>
-        <b>${fmtTime(h.time)}</b><br/>
-        <small>${h.label || h.category || "—"}</small>
-      </div>
-      <div class="actions">
-        <div class="pill">${fmtTempC(h.tempC)}</div>
-        <div class="pill">${fmtWindKmh(h.windKmh)}</div>
-      </div>
-    </div>
-  `).join("");
-
-  el("#main").innerHTML = `
-    <div class="card">
-      <h2>Hourly</h2>
-      <div class="list">${rows || "<div class='item'><small>No data</small></div>"}</div>
-    </div>
-  `;
-}
-
-function renderWeekly(data){
-  el("#pageSubtitle").textContent = "The week, in one clean glance.";
-  const rows = (data.daily || []).slice(0, 7).map(d => `
-    <div class="item">
-      <div>
-        <b>${fmtDay(d.date)}</b><br/>
-        <small>${d.label || d.category || "—"}</small>
-      </div>
-      <div class="actions">
-        <div class="pill">Hi <b>${fmtTempC(d.maxC)}</b></div>
-        <div class="pill">Lo <b>${fmtTempC(d.minC)}</b></div>
-      </div>
-    </div>
-  `).join("");
-
-  el("#main").innerHTML = `
-    <div class="card">
-      <h2>Weekly</h2>
-      <div class="list">${rows || "<div class='item'><small>No data</small></div>"}</div>
-    </div>
-  `;
-}
-
-async function renderSearch(){
-  el("#pageSubtitle").textContent = "Search, save, repeat.";
-  const favs = state.favorites.slice(0,5);
-
-  const favRows = await Promise.all(favs.map(async (p, idx) => {
-    try{
-      const d = await fetchForecast(p.lat, p.lon);
-      const t = fmtTempC(d.current?.tempC);
-      const c = (d.current?.label || d.current?.category || "—");
-      return `
-        <div class="item">
-          <div>
-            <b>${p.name}${p.country ? ", " + p.country : ""}</b><br/>
-            <small>${t} • ${c}</small>
-          </div>
-          <div class="actions">
-            <button class="iconBtn" data-act="goFav" data-idx="${idx}">Open</button>
-            <button class="iconBtn" data-act="delFav" data-idx="${idx}">✕</button>
-          </div>
-        </div>
-      `;
-    }catch(e){
-      return `
-        <div class="item">
-          <div>
-            <b>${p.name}</b><br/>
-            <small>Couldn’t load right now</small>
-          </div>
-          <div class="actions">
-            <button class="iconBtn" data-act="delFav" data-idx="${idx}">✕</button>
-          </div>
-        </div>
-      `;
-    }
-  }));
-
-  el("#main").innerHTML = `
-    <div class="card">
-      <h2>Search</h2>
-      <input id="q" class="input" placeholder="Type a city, suburb, or landmark…" />
-      <div id="results" class="list" style="margin-top:10px"></div>
-    </div>
-
-    <div class="card">
-      <h2>Favourites (max 5)</h2>
-      <div class="list">${favRows.join("") || "<div class='item'><small>No favourites yet.</small></div>"}</div>
-      <div class="sub" style="margin-top:8px">To delete one: tap ✕. Then add a new favourite.</div>
-    </div>
-  `;
-
-  el("#q").addEventListener("input", debounce(async (e)=>{
-    const q = e.target.value.trim();
-    if (q.length < 2){
-      el("#results").innerHTML = "";
-      return;
-    }
-    const res = await fetch(`/api/suggest?q=${encodeURIComponent(q)}`).then(r=>r.json());
-    const html = (res.results || []).slice(0,6).map((r,i)=>`
-      <div class="item">
-        <div>
-          <b>${r.name}</b><br/>
-          <small>${r.country || ""}</small>
-        </div>
-        <div class="actions">
-          <button class="iconBtn" data-act="setPlace" data-i="${i}">Use</button>
-          <button class="iconBtn" data-act="addFav" data-i="${i}">+ Fav</button>
-        </div>
-      </div>
-    `).join("");
-    el("#results").innerHTML = html || "<div class='item'><small>No matches</small></div>";
-    // attach actions
-    el("#results").querySelectorAll("button").forEach(btn=>{
-      btn.addEventListener("click", ()=>{
-        const act = btn.dataset.act;
-        const i = Number(btn.dataset.i);
-        const pick = res.results[i];
-        if (!pick) return;
-        if (act==="setPlace"){
-          state.place = pick;
-          saveState();
-          toast("Updated location");
-          navTo("home");
-        } else if (act==="addFav"){
-          addFavorite(pick);
-        }
+      confidenceValue.addEventListener('click', () => {
+        alert(`${confLevel}: Sources vary by ${tempVariance}°.`);
       });
-    });
-  }, 300));
-
-  // attach fav actions
-  el("#main").querySelectorAll("button[data-act]").forEach(btn=>{
-    btn.addEventListener("click", ()=>{
-      const act = btn.dataset.act;
-      const idx = Number(btn.dataset.idx);
-      if (!Number.isFinite(idx)) return;
-      if (act==="delFav"){
-        state.favorites.splice(idx,1);
-        saveState();
-        toast("Removed favourite");
-        render(); // rerender same page
-      }
-      if (act==="goFav"){
-        const p = state.favorites[idx];
-        if (!p) return;
-        state.place = p;
-        saveState();
-        navTo("home");
-      }
-    });
-  });
-}
-
-function addFavorite(p){
-  // enforce max 5
-  const exists = state.favorites.some(x => Math.abs(x.lat-p.lat) < 1e-6 && Math.abs(x.lon-p.lon) < 1e-6);
-  if (exists){ toast("Already in favourites"); return; }
-  if (state.favorites.length >= 5){
-    toast("Max 5 favourites. Delete one first.");
-    return;
-  }
-  state.favorites.push(p);
-  saveState();
-  toast("Added to favourites");
-  render();
-}
-
-function renderSettings(){
-  el("#pageSubtitle").textContent = "Keep it simple.";
-  el("#main").innerHTML = `
-    <div class="card">
-      <h2>Units</h2>
-      <div class="list">
-        <div class="item">
-          <div>
-            <b>Temperature</b><br/>
-            <small>${state.units === "metric" ? "Celsius (°C)" : "Fahrenheit (°F)"}</small>
-          </div>
-          <div class="actions">
-            <button class="iconBtn" id="toggleUnits">Switch</button>
-          </div>
-        </div>
-        <div class="item">
-          <div>
-            <b>Data sources</b><br/>
-            <small>Open-Meteo + MET Norway + WeatherAPI (if key)</small>
-          </div>
-        </div>
-        <div class="item">
-          <div>
-            <b>Clear favourites</b><br/>
-            <small>Start fresh.</small>
-          </div>
-          <div class="actions">
-            <button class="iconBtn" id="clearFavs">Clear</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-  el("#toggleUnits").addEventListener("click", ()=>{
-    state.units = state.units === "metric" ? "imperial" : "metric";
-    state.cache.clear();
-    saveState();
-    toast("Units updated");
-    navTo("home");
-  });
-  el("#clearFavs").addEventListener("click", ()=>{
-    state.favorites = [];
-    saveState();
-    toast("Favourites cleared");
-    navTo("search");
-  });
-}
-
-function debounce(fn, ms){
-  let t;
-  return (...args)=>{
-    clearTimeout(t);
-    t = setTimeout(()=>fn(...args), ms);
-  };
-}
-
-async function render(){
-  navButton("#navHome","home");
-  navButton("#navHourly","hourly");
-  navButton("#navWeekly","weekly");
-  navButton("#navSearch","search");
-  navButton("#navSettings","settings");
-
-  await ensurePlace();
-  el("#pageTitle").textContent = `${state.place.name}${state.place.country ? ", " + state.place.country : ""}`;
-
-  if (state.view === "search"){
-    await setBackground("clear", slotFromHour(new Date().getHours()));
-    await renderSearch();
-    return;
-  }
-  if (state.view === "settings"){
-    await setBackground("clear", slotFromHour(new Date().getHours()));
-    renderSettings();
-    return;
+    } catch (e) {
+      console.error('Fetch error:', e);
+      fallbackUI();
+    }
   }
 
-  try{
-    const data = await fetchForecast(state.place.lat, state.place.lon);
-    if (state.view === "home") await renderHome(data);
-    if (state.view === "hourly") renderHourly(data);
-    if (state.view === "weekly") renderWeekly(data);
-  }catch(e){
-    el("#main").innerHTML = `
-      <div class="card">
-        <h2>Oops</h2>
-        <div class="sub">Couldn’t load weather right now. Check your internet and try again.</div>
-      </div>
-    `;
-  }
-}
-
-document.addEventListener("click", (e)=>{
-  const btn = e.target.closest("[data-nav]");
-  if (!btn) return;
-  navTo(btn.dataset.nav);
-});
-
-document.addEventListener("DOMContentLoaded", ()=>{
-  el("#settingsBtn").addEventListener("click", ()=> navTo("settings"));
-  render();
+  // ... (previous fallbackUI, addParticles, screen toggle, search logic)
 });

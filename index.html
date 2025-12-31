@@ -7,82 +7,73 @@
   <link rel="stylesheet" href="assets/app.css"/>
 </head>
 <body>
-  <!-- Full-screen background -->
   <div id="bg" aria-hidden="true">
-    <div id="bgBlur"></div>
     <img id="bgImg" alt="" loading="lazy"/>
-    <div id="bgVignette"></div>
+    <div id="scrim"></div>
   </div>
 
-  <div class="app-container">
-    <!-- Main content overlay -->
-    <main class="main-content">
-      <header class="header">
-        <div class="brand-section">
-          <h1 class="brand">Probably Weather</h1>
-          <p class="tagline">Your best guess, without the drama.</p>
-        </div>
-        <button id="settingsBtn" class="iconBtn" aria-label="Settings">⚙️</button>
-      </header>
+  <div id="particles" aria-hidden="true"></div>
 
-      <section class="hero-content">
-        <div id="confidenceBadge" class="confidence-badge">PROBABLY • HIGH CONFIDENCE</div>
-        <h2 id="headline" class="headline">This is hot.</h2>
-        <div id="temperature" class="temperature">35–38°</div>
-        <p id="supportingLine" class="supporting-line">Frying an egg is a real option</p>
-      </section>
+  <div class="container">
+    <header class="header">
+      <div class="brand">
+        <svg id="logo" width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M20 5C12.268 5 6 11.268 6 19C6 26.732 12.268 33 20 33C27.732 33 34 26.732 34 19C34 11.268 27.732 5 20 5ZM20 30C13.373 30 8 24.627 8 18C8 11.373 13.373 6 20 6C26.627 6 32 11.373 32 18C32 24.627 26.627 30 20 30Z" fill="currentColor"/>
+          <path d="M20 10C15.0294 10 11 14.0294 11 19C11 23.9706 15.0294 28 20 28C24.9706 28 29 23.9706 29 19C29 14.0294 24.9706 10 20 10ZM20 26C16.134 26 13 22.866 13 19C13 15.134 16.134 12 20 12C23.866 12 27 15.134 27 19C27 22.866 23.866 26 20 26Z" fill="currentColor" opacity="0.5"/>
+        </svg>
+        Probably Weather
+      </div>
+      <div id="location" class="location">Strand, WC</div>
+      <div class="tagline">No more Ja-No-Maybe weather. Just Probably.</div>
+    </header>
+
+    <main id="home-screen" class="main">
+      <div id="confidence" class="confidence">PROBABLY • HIGH CONFIDENCE</div>
+      <h1 id="headline" class="headline">This is cold.</h1>
+      <div id="temp" class="temp">5–8°</div>
+      <div id="description" class="description">Time to build a snowman</div>
     </main>
 
-    <!-- Right-side vertical rail -->
-    <aside id="sideRail" class="side-rail">
-      <div class="rail-item extreme">
-        <span class="rail-icon">☀️</span>
-        <div>
-          <div class="rail-label">Today's extreme: Heat</div>
-          <div id="extremeValue" class="rail-value">35–38°</div>
-        </div>
+    <aside class="sidebar">
+      <div class="card">
+        <div id="extremeLabel" class="label">Today's extreme: Cold</div>
+        <div id="extremeValue" class="value">5–8°</div>
       </div>
-      <div class="rail-item">
-        <span class="rail-icon">🌧️</span>
-        <div>
-          <div class="rail-label">Rain:</div>
-          <div id="rainValue" class="rail-value">Probably none today</div>
-        </div>
+      <div class="card">
+        <div class="label">Rain:</div>
+        <div id="rainValue" class="value">Probably snow today</div>
       </div>
-      <div class="rail-item">
-        <span class="rail-icon">☀️</span>
-        <div>
-          <div class="rail-label">UV</div>
-          <div id="uvValue" class="rail-value">Very high (10)</div>
-        </div>
+      <div class="card">
+        <div class="label">UV</div>
+        <div id="uvValue" class="value">Low (2)</div>
       </div>
-      <div class="rail-item confidence">
-        <span class="rail-icon">↺</span>
-        <div>
-          <div class="rail-label">Confidence:</div>
-          <div id="confidenceValue" class="rail-value">High:<br>Based on 3 forecasts →</div>
-        </div>
+      <div class="card">
+        <div class="label">Confidence:</div>
+        <div id="confidenceValue" class="value">High<br>Based on 5 forecasts →</div>
       </div>
     </aside>
 
-    <!-- Bottom navigation -->
-    <nav class="nav">
-      <button id="navHome" class="active" data-nav="home"><span class="navIcon">🏠</span><span class="navLabel">Home</span></button>
-      <button id="navHourly" data-nav="hourly"><span class="navIcon">🕒</span><span class="navLabel">Hourly</span></button>
-      <button id="navWeekly" data-nav="weekly"><span class="navIcon">📅</span><span class="navLabel">Week</span></button>
-      <button id="navSearch" data-nav="search"><span class="navIcon">🔎</span><span class="navLabel">Search</span></button>
-      <button id="navSettings" data-nav="settings"><span class="navIcon">⚙️</span><span class="navLabel">Settings</span></button>
+    <div id="search-screen" class="search-screen hidden">
+      <input id="searchInput" type="text" placeholder="Search for a place" />
+      <div class="saved-places">
+        <h3>Saved places</h3>
+        <ul id="favoritesList"></ul>
+      </div>
+      <div class="recent-places">
+        <h3>Recent</h3>
+        <ul id="recentList"></ul>
+      </div>
+      <button id="manageFavorites">Manage favorites</button>
+    </div>
+
+    <nav class="bottom-nav">
+      <button id="navHome" class="nav-item active">Home</button>
+      <button id="navHourly" class="nav-item">Hourly</button>
+      <button id="navWeek" class="nav-item">Week</button>
+      <button id="navSearch" class="nav-item">Search</button>
+      <button id="navSettings" class="nav-item">Settings</button>
     </nav>
   </div>
-
-  <div id="toast" class="toast">Saved</div>
-
-  <!-- Temporary test: remove this block once app.js is updated -->
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      // CHANGE THIS to one of your actual image filenames
-      document.getElementById('bgImg').src = 'assets/images/bg/heat/day.jpg';
-  </script>
 
   <script src="assets/app.js"></script>
 </body>
