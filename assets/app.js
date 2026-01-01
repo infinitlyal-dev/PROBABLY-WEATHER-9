@@ -185,4 +185,4 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ... (previous fallbackUI, addParticles, screen toggle, search logic)
-});
+}); 
