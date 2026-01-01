@@ -1,10 +1,9 @@
 {
-  "functions": {
-    "api/forecast.js": {
-      "maxDuration": 10
-    },
-    "api/suggest.js": {
-      "maxDuration": 10
+  "builds": [
+    {
+      "src": "**/*.html",
+      "use": "@vercel/static"
     }
-  }
+  ],
+  "functions": []
 }
